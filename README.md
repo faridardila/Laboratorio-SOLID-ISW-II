@@ -235,9 +235,29 @@ Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia
    - Se delegó la emisión de la notificación a `NotificacionService.notificarCobroCuota`, dejando a `CobroCuotaManejo` con la única responsabilidad de procesar el débito mensual de las cuentas. Si el banco incorpora un servicio de notificación por correo electrónico o cambia el formato del mensaje, `CobroCuotaManejo` no requiere modificación.
 
 **Pregunta de control:**
-- **¿Qué hace `TransaccionService` en una sola frase?**  
-  *TransaccionService coordina el flujo de ejecución de una transferencia bancaria entre cuentas.*
-- **¿Aparece la palabra "y"?**  
-  No. Su única responsabilidad es la coordinación del flujo; no asume validaciones por sí misma, no calcula tarifas, no imprime comprobantes, no formatea mensajes ni audita eventos.
-- **Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?**  
-  Se modifica únicamente `ComprobanteService.java`. Ningún otro archivo del sistema se ve alterado.
+> *Después del cambio, describan en una frase qué hace TransaccionService. ¿Aparece la palabra "y"? Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?*
+
+**Respuesta:**
+- **¿Qué hace `TransaccionService` en una sola frase?:** *TransaccionService coordina el flujo de ejecución de una transferencia bancaria entre cuentas.*
+- **¿Aparece la palabra "y"?:** No. Su única responsabilidad es la coordinación del flujo; no asume validaciones por sí misma, no calcula tarifas, no imprime comprobantes, no formatea mensajes ni audita eventos.
+- **Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?:** Se modifica únicamente `ComprobanteService.java`. Ningún otro archivo del sistema se ve alterado.
+
+---
+
+### Punto de control O (Open/Closed Principle)
+
+**Eliminación del switch para tipos de transferencia:**
+Se sustituyó el bloque condicional `switch` por el patrón Strategy y polimorfismo mediante la interfaz `TipoTransferencia` y sus implementaciones concretas:
+- `TipoTransferencia.java`: Interfaz que define el contrato común (`getNombre()` y `calcularComision(double monto)`).
+- `TransferenciaMismoBanco.java`: Implementación para transferencias dentro del mismo banco (comisión \$0).
+- `TransferenciaOtroBanco.java`: Implementación para transferencias a otros bancos (comisión fija de \$7.500).
+- `TransferenciaInternacional.java`: Implementación para transferencias internacionales (3% del monto + \$25.000).
+- Se eliminó la clase intermedia `CalculadoraComision.java` (y su `switch`) ya que el cálculo ahora reside polimórficamente en cada tipo de transferencia.
+- `TransaccionService.java` ahora recibe cualquier `TipoTransferencia` sin conocer sus reglas internas de cálculo ni acoplarse a un listado cerrado de tipos.
+
+**Pregunta de control:**
+> *Si mañana llega un tipo de transferencia nuevo, ¿qué archivos existentes tendrían que modificar? Enumérenlos. Lo ideal es que solo aparezca el punto donde se arma el sistema (el programa principal).*
+
+**Respuesta:**
+1. **`Main.java` (únicamente):** El único archivo existente que se modifica es el punto donde se arma el sistema (el programa principal) para instanciar y enviar el nuevo tipo de transferencia (ej. `new TransferenciaPSE()`).  
+2. **Ningún otro archivo existente se modifica:** El nuevo tipo de transferencia se incorpora creando código nuevo (por ejemplo, `TransferenciaPSE.java`) que implemente la interfaz `TipoTransferencia`. Clases como `TransaccionService.java`, `TipoTransferencia.java`, `ValidadorTransaccion.java`, `ComprobanteService.java`, etc., quedan completamente cerradas a la modificación y abiertas a la extensión.
