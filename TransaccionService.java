@@ -5,7 +5,7 @@ public class TransaccionService {
     private final NotificacionService notificacionService = new NotificacionService();
     private final AuditoriaService auditoriaService = new AuditoriaService();
 
-    public void transferir(Cuenta origen, Cuenta destino, double monto, TipoTransferencia tipo) {
+    public void transferir(CuentaOperativa origen, Cuenta destino, double monto, TipoTransferencia tipo) {
         validador.validar(monto);
 
         double comision = tipo.calcularComision(monto);

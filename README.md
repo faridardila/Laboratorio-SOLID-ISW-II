@@ -261,3 +261,32 @@ Se sustituyó el bloque condicional `switch` por el patrón Strategy y polimorfi
 **Respuesta:**
 1. **`Main.java` (únicamente):** El único archivo existente que se modifica es el punto donde se arma el sistema (el programa principal) para instanciar y enviar el nuevo tipo de transferencia (ej. `new TransferenciaPSE()`).  
 2. **Ningún otro archivo existente se modifica:** El nuevo tipo de transferencia se incorpora creando código nuevo (por ejemplo, `TransferenciaPSE.java`) que implemente la interfaz `TipoTransferencia`. Clases como `TransaccionService.java`, `TipoTransferencia.java`, `ValidadorTransaccion.java`, `ComprobanteService.java`, etc., quedan completamente cerradas a la modificación y abiertas a la extensión.
+
+---
+
+### Punto de control L (Liskov Substitution Principle)
+
+**Corrección de la jerarquía de cuentas:**
+Se rediseñó la jerarquía de cuentas para que los subtipos sean sustituibles por sus tipos base sin violar contratos ni lanzar excepciones inesperadas:
+- `Cuenta.java`: Clase base abstracta que define las propiedades universales de cualquier cuenta (`numero`, `titular`, `saldo`) y la operación de depósito (`depositar`), común a todos los productos de captación. Se eliminó el método `retirar(double monto)` de la clase base.
+- `CuentaOperativa.java`: Subclase abstracta de `Cuenta` que introduce formalmente la capacidad de retiro bajo demanda (`retirar(double monto)`). Modela cuentas transaccionales que permiten movimientos regulares y débitos.
+- `CuentaAhorros.java`: Extiende de `CuentaOperativa`, heredando de manera legítima y segura la capacidad de retiro y cobro.
+- `CDT.java`: Extiende de `Cuenta`, pero **no** de `CuentaOperativa`. Al no heredar `retirar` como contrato obligatorio de una cuenta operativa, ya no viola el Principio de Sustitución de Liskov ni se ve forzado a arrojar `UnsupportedOperationException`.
+- `CobroCuotaManejo.java`: Su método `cobrarMensual` ahora restringe su parámetro a `List<? extends CuentaOperativa>`. Solo puede recibir cuentas que por contrato admitan retiros y cobro de comisiones.
+- `TransaccionService.java`: El origen de la transferencia se tipó como `CuentaOperativa`, garantizando en tiempo de compilación que no se puedan transferir fondos desde un CDT.
+
+**Pregunta de control:**
+> *¿Su solución detecta el error al compilar (o con el verificador de tipos de su lenguaje) o al ejecutar? ¿Por qué es mejor lo primero? Si alguien propone "envolver el retiro en un try/catch e ignorar los CDT", ¿por qué eso no resuelve el problema de diseño?*
+
+**Respuesta:**
+- **¿Su solución detecta el error al compilar o al ejecutar?:**  
+  Nuestra solución detecta el error **al compilar** (en tiempo de compilación mediante el sistema de tipos estático de Java). Si un desarrollador intenta incluir un CDT en la lista de cobro (`List.of(ana, luis, cdtAna)`), el compilador emite un error de tipos incompatibles y detiene la construcción del proyecto antes de que llegue a ejecución.
+- **¿Por qué es mejor al compilar?:**  
+  1. *Prevención temprana de fallos (Fail-fast):* Detectar el error en compilación evita que errores de diseño o de lógica lleguen a ambientes de prueba o a producción.  
+  2. *Seguridad en procesos batch críticos:* Si el proceso de cobro se ejecutara de noche para 1.000.000 de cuentas y la cuenta 500.000 fuera un CDT, un fallo en tiempo de ejecución abortaría el proceso, dejando la mitad de las cuentas sin cobrar e inconsistencias operativas. La verificación en compilación garantiza contractualmente que toda cuenta procesada es apta para cobro.  
+  3. *Claridad y contratos expresivos:* La signatura `cobrarMensual(List<? extends CuentaOperativa>)` documenta con precisión la precondición del método sin depender de comentarios ni de validaciones manuales con `instanceof`.
+- **¿Por qué "envolver el retiro en un try/catch e ignorar los CDT" no resuelve el problema de diseño?:**  
+  1. *Mantiene la violación de LSP:* No resuelve el defecto del modelo; solo oculta el síntoma. `CDT` seguiría pretendiendo ser un tipo sustituible de una clase que promete retiros, rompiendo el contrato en tiempo de ejecución.  
+  2. *Acoplamiento indebido:* `CobroCuotaManejo` tendría que asumir que la jerarquía miente y manejar excepciones para decidir qué procesar y qué ignorar.  
+  3. *Mal uso de excepciones:* Las excepciones deben utilizarse para circunstancias excepcionales o imprevistas, no para controlar el flujo normal del negocio (saber que los CDT no pagan cuota de manejo).  
+  4. *Riesgo de enmascarar errores verdaderos:* Un bloque `try/catch` genérico puede silenciar fallos reales en cuentas que sí debían ser cobradas.
