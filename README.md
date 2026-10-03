@@ -212,3 +212,32 @@ private final SmsGateway sms = new SmsGateway();</code></pre>
 Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia, implementación y dependencias (new). Puede ser a mano (foto) o con cualquier herramienta (draw.io, PlantUML, Mermaid, etc.). Marquen en rojo las dependencias o herencias que consideren problemáticas.
 
 ![Diagrama de clases UML - Código Original](UML%20SOLID.png)
+
+---
+
+## Bloque 2 - Refactorización SOLID
+
+### Punto de control S (Single Responsibility Principle)
+
+**Separación de responsabilidades identificadas en el sistema (Principio S):**
+
+1. **En `TransaccionService.java`:**
+   Se extrajeron las siguientes clases para encapsular cada una de las responsabilidades individuales que estaban mezcladas en el método `transferir`:
+   - `ValidadorTransaccion.java`: Valida los límites y restricciones del monto de la transferencia.
+   - `CalculadoraComision.java`: Calcula el valor de la comisión según el tipo de transferencia.
+   - `ComprobanteService.java`: Genera e imprime el comprobante de la transacción.
+   - `NotificacionService.java`: Encapsula la lógica de notificación al cliente a través del canal correspondiente (`SmsGateway`).
+   - `AuditoriaService.java`: Registra el log y evento de auditoría con la marca de tiempo.
+   - `TransaccionService.java`: Actúa exclusivamente como orquestador del flujo de la transferencia.
+
+2. **En `CobroCuotaManejo.java`:**
+   - Previamente mezclaba la lógica de negocio (cobro de la cuota debitando de la cuenta) con la notificación/impresión del mensaje a consola.
+   - Se delegó la emisión de la notificación a `NotificacionService.notificarCobroCuota`, dejando a `CobroCuotaManejo` con la única responsabilidad de procesar el débito mensual de las cuentas. Si el banco incorpora un servicio de notificación por correo electrónico o cambia el formato del mensaje, `CobroCuotaManejo` no requiere modificación.
+
+**Pregunta de control:**
+- **¿Qué hace `TransaccionService` en una sola frase?**  
+  *TransaccionService coordina el flujo de ejecución de una transferencia bancaria entre cuentas.*
+- **¿Aparece la palabra "y"?**  
+  No. Su única responsabilidad es la coordinación del flujo; no asume validaciones por sí misma, no calcula tarifas, no imprime comprobantes, no formatea mensajes ni audita eventos.
+- **Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?**  
+  Se modifica únicamente `ComprobanteService.java`. Ningún otro archivo del sistema se ve alterado.
