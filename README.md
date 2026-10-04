@@ -335,3 +335,43 @@ Los clientes pueden transferir fondos utilizando una llave (número celular o do
 #### Registro de impacto en código (Métrica R1)
 - **Archivos existentes modificados (en `src/`):** **0** (ninguna clase existente del dominio o servicios fue tocada, demostrando cumplimiento estricto de OCP).
 - **Archivos nuevos creados (en `src/`):** **1** (`TransferenciaLlave.java`).
+
+---
+
+### R2: Cuenta infantil
+
+Nuevo producto para menores de edad con recepción de depósitos sin límite y control de retiros de máximo \$200.000 acumulados en un mismo día. Se utiliza como origen de transferencias y está sujeta al cobro de cuota de manejo como cualquier cuenta operativa.
+- **Criterio de aceptación:** Si la cuenta ya retiró \$150.000 hoy, un retiro de \$60.000 se rechaza con excepción y el saldo no cambia.
+
+#### Implementación sobre el código refactorizado
+- Se creó la clase `CuentaInfantil.java` que extiende de `CuentaOperativa`:
+  ```java
+  public class CuentaInfantil extends CuentaOperativa {
+      private static final double TOPE_DIARIO_RETIRO = 200_000;
+      private double totalRetiradoHoy = 0;
+
+      public CuentaInfantil(String numero, String titular, double saldoInicial) {
+          super(numero, titular, saldoInicial);
+      }
+
+      @Override
+      public void retirar(double monto) {
+          if (totalRetiradoHoy + monto > TOPE_DIARIO_RETIRO) {
+              throw new IllegalStateException("Supera el tope diario de retiro de $" + TOPE_DIARIO_RETIRO);
+          }
+          super.retirar(monto);
+          totalRetiradoHoy += monto;
+      }
+
+      public double getTotalRetiradoHoy() {
+          return totalRetiradoHoy;
+      }
+  }
+  ```
+- Se añadieron pruebas unitarias en `TransaccionServiceTest.java`:
+  - `testCuentaInfantilTopeRetiro()`: Valida el rechazo de retiros que excedan el tope diario y la inmutabilidad del saldo.
+  - `testCuentaInfantilComoOrigenTransferenciaYCuotaManejo()`: Valida que pueda ser sustituida como origen de transferencias y participar en el cobro de cuota de manejo respetando LSP.
+
+#### Registro de impacto en código (Métrica R2)
+- **Archivos existentes modificados (en `src/`):** **0** (gracias a la jerarquía `CuentaOperativa`, `CobroCuotaManejo` y `TransaccionService` operan sin modificaciones).
+- **Archivos nuevos creados (en `src/`):** **1** (`CuentaInfantil.java`).

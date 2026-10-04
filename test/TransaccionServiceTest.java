@@ -59,6 +59,35 @@ public class TransaccionServiceTest {
     }
 
     @Test
+    void testCuentaInfantilTopeRetiro() {
+        // Criterio de aceptación R2: si la cuenta ya retiró $150.000 hoy, un retiro de $60.000 se rechaza y el saldo no cambia.
+        CuentaInfantil cuentaInfantil = new CuentaInfantil("INF-01", "Pepito", 300_000);
+
+        cuentaInfantil.retirar(150_000);
+        assertEquals(150_000, cuentaInfantil.getSaldo(), 0.001);
+        assertEquals(150_000, cuentaInfantil.getTotalRetiradoHoy(), 0.001);
+
+        // Intento de retirar $60.000 adicionales (150.000 + 60.000 = 210.000 > 200.000 tope)
+        assertThrows(IllegalStateException.class, () -> cuentaInfantil.retirar(60_000));
+
+        // El saldo debe permanecer inalterado en 150.000
+        assertEquals(150_000, cuentaInfantil.getSaldo(), 0.001);
+    }
+
+    @Test
+    void testCuentaInfantilComoOrigenTransferenciaYCuotaManejo() {
+        CuentaInfantil cuentaInfantil = new CuentaInfantil("INF-02", "Juanita", 250_000);
+
+        // Usar como origen de transferencia
+        servicio.transferir(cuentaInfantil, cuentaDestino, 50_000, new TransferenciaLlave());
+        assertEquals(200_000, cuentaInfantil.getSaldo(), 0.001);
+
+        // Cobro de cuota de manejo como cualquier cuenta operativa
+        new CobroCuotaManejo(fakeNotificacion).cobrarMensual(List.of(cuentaInfantil));
+        assertEquals(200_000 - 12_900, cuentaInfantil.getSaldo(), 0.001);
+    }
+
+    @Test
     void testOtroBanco() {
         servicio.transferir(cuentaOrigen, cuentaDestino, 30_000, new TransferenciaOtroBanco());
 
