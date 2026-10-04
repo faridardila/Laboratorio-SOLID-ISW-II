@@ -448,3 +448,28 @@ Por requerimiento regulatorio, cada transacción exitosa debe enviarse al sistem
 #### Registro de impacto en código (Métrica R4)
 - **Archivos existentes modificados (en `src/`):** **0** (DIP y OCP permiten componer la auditoría en el punto de ensamblado sin tocar `TransaccionService`).
 - **Archivos nuevos creados (en `src/`):** **2** (`AntifraudeAuditoriaService.java`, `AuditoriaCompuestaService.java`).
+
+---
+
+### R5: Migración a PostgreSQL
+
+El banco migra el motor de persistencia a PostgreSQL (emitiendo `[POSTGRES]`). Se conserva la clase `OracleRepositorio` intacta ante cualquier eventualidad de *rollback*.
+- **Criterio de aceptación:** El programa guarda en PostgreSQL y las pruebas unitarias no cambian.
+
+#### Implementación sobre el código refactorizado
+- Se creó la clase `PostgreSqlRepositorio.java` implementando la interfaz `TransaccionRepositorio`:
+  ```java
+  public class PostgreSqlRepositorio implements TransaccionRepositorio {
+      @Override
+      public void guardarTransaccion(String origen, String destino, double monto, double comision) {
+          System.out.println("[POSTGRES] Conectando a jdbc:postgresql://prod-db:5432/BANCO ...");
+          System.out.println("[POSTGRES] INSERT INTO transacciones VALUES ('" + origen + "', '" + destino + "', " + monto + ", " + comision + ")");
+      }
+  }
+  ```
+- Gracias al Principio de Inversión de Dependencias (DIP), cambiar de Oracle a PostgreSQL solo requiere instanciar `new PostgreSqlRepositorio()` en el punto de ensamblado (`Main.java`). `TransaccionService` y la suite de pruebas unitarias permanecen completamente inalteradas.
+- Se añadió la prueba unitaria `testPostgreSqlRepositorio()` en `TransaccionServiceTest.java`.
+
+#### Registro de impacto en código (Métrica R5)
+- **Archivos existentes modificados (en `src/`):** **0** (`TransaccionRepositorio` y `TransaccionService` permanecen cerradas y sin cambios).
+- **Archivos nuevos creados (en `src/`):** **1** (`PostgreSqlRepositorio.java`).

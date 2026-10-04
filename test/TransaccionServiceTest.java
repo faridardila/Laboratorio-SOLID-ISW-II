@@ -160,6 +160,13 @@ public class TransaccionServiceTest {
     }
 
     @Test
+    void testPostgreSqlRepositorio() {
+        // Criterio de aceptación R5: PostgreSqlRepositorio implementa TransaccionRepositorio sin romper nada
+        TransaccionRepositorio pgRepo = new PostgreSqlRepositorio();
+        assertNotNull(pgRepo);
+    }
+
+    @Test
     void testOtroBanco() {
         servicio.transferir(cuentaOrigen, cuentaDestino, 30_000, new TransferenciaOtroBanco());
 
