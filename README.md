@@ -1,10 +1,9 @@
-# LABORATORIO: FAST PROTOTYPING
+# LABORATORIO SOLID
 
 **Autores:**
 - Deivid Farid Ardila Herrera
 - Ángel David Beltrán García
-
-**Grupo:** 4  
+ 
 **Docente:** Sergio Enrique Vargas Pedraza  
 **Universidad Nacional de Colombia**  
 **Facultad de Ingeniería**  
@@ -276,7 +275,7 @@ Se segregó la interfaz monolítica `ProductoBancario` separándola en interface
 
 **Respuesta:**
 - **¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez?:**  
-  **Sí.** Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
+  Sí. Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
 - **¿Qué interfaz necesitó para eso?:**  
   Necesitó la interfaz segregada **`Extractable`** (que declara únicamente el método `String generarExtracto()`).
 - **¿Por qué no necesitó conocer los demás métodos de cada producto?:**  
@@ -293,8 +292,8 @@ Se eliminó la creación de dependencias con `new` dentro de `TransaccionService
 
 **Respuesta:**
 - **¿Cuántas clases concretas conoce ahora `TransaccionService`?:**  
-  **Cero (0).** `TransaccionService` no contiene ninguna llamada a `new` ni tiene referencias a clases concretas. Todas sus dependencias (`ValidadorTransaccion`, `TransaccionRepositorio`, `ComprobanteService`, `NotificacionService`, `AuditoriaService`) son interfaces. Sus parámetros en el método `transferir` son clases abstractas (`CuentaOperativa`, `Cuenta`) e interfaces (`TipoTransferencia`). Cumple rigurosamente la regla: *"Los módulos de alto nivel no deben depender de módulos de bajo nivel; ambos deben depender de abstracciones"*.
+   No contiene ninguna llamada a `new` ni tiene referencias a clases concretas. Todas sus dependencias (`ValidadorTransaccion`, `TransaccionRepositorio`, `ComprobanteService`, `NotificacionService`, `AuditoriaService`) son interfaces. Sus parámetros en el método `transferir` son clases abstractas (`CuentaOperativa`, `Cuenta`) e interfaces (`TipoTransferencia`).
 - **¿Quién decide si se usa Oracle o si se notifica por SMS?:**  
-  **El programa principal (`Main.java`)**, que actúa como el *Composition Root* (punto centralizado de armado del sistema). `TransaccionService` es totalmente agnóstico a la infraestructura; es `Main` quien decide instanciar `OracleRepositorio` y `SmsNotificacionService` y pasárselos al servicio. Si mañana el banco decide migrar a PostgreSQL o notificar por correo o WhatsApp, solo se cambia la instanciación en `Main`, sin tocar una sola línea de `TransaccionService`.
+  El programa principal (`Main.java`), que actúa como el *Composition Root*. `TransaccionService` es totalmente agnóstico a la infraestructura; es `Main` quien decide instanciar `OracleRepositorio` y `SmsNotificacionService` y pasárselos al servicio. Si mañana el banco decide migrar a PostgreSQL o notificar por correo o WhatsApp, solo se cambia la instanciación en `Main`, sin tocar una sola línea de `TransaccionService`.
 - **Vuelvan al experimento 2 del bloque 1: ¿ya es posible esa prueba?:**  
-  **Sí, ya es completamente posible.** En el experimento 2 del bloque 1 era imposible verificar de forma unitaria la comisión de \$7.500 sin conectarse a la base de datos Oracle y disparar un SMS porque las clases estaban acopladas fijamente con `new`. Ahora, gracias a la inyección de dependencias mediante interfaces, un test unitario puede suministrar dobles de prueba (*mocks*, *fakes* o *stubs* en memoria) para el repositorio y el notificador (por ejemplo, `(origen, destino, monto, comision) -> {}`). Esto permite que la prueba unitaria verifique el débito, el crédito y la comisión en milisegundos, de forma aislada, determinista y sin depender de servicios externos.
+  Sí, ya es completamente posible. En el experimento 2 del bloque 1 era imposible verificar de forma unitaria la comisión de \$7.500 sin conectarse a la base de datos Oracle y disparar un SMS porque las clases estaban acopladas fijamente con `new`. Ahora, gracias a la inyección de dependencias mediante interfaces, un test unitario puede suministrar dobles de prueba (*mocks*, *fakes* o *stubs* en memoria) para el repositorio y el notificador (por ejemplo, `(origen, destino, monto, comision) -> {}`). Esto permite que la prueba unitaria verifique el débito, el crédito y la comisión en milisegundos, de forma aislada, determinista y sin depender de servicios externos.
