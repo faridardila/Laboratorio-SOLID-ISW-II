@@ -88,6 +88,29 @@ public class TransaccionServiceTest {
     }
 
     @Test
+    void testNotificacionCompuestaSmsYPush() {
+        // Criterio de aceptación R3: por cada transferencia exitosa se notifica por SMS y por PUSH
+        FakeNotificacionService canalSms = new FakeNotificacionService();
+        FakeNotificacionService canalPush = new FakeNotificacionService();
+
+        NotificacionService compuesto = new NotificacionCompuestaService(canalSms, canalPush);
+
+        TransaccionService servicioConCompuesto = new TransaccionService(
+                validador,
+                fakeRepositorio,
+                dummyComprobante,
+                compuesto,
+                dummyAuditoria
+        );
+
+        servicioConCompuesto.transferir(cuentaOrigen, cuentaDestino, 20_000, new TransferenciaMismoBanco());
+
+        // Ambos canales deben haber recibido 1 notificación de transferencia
+        assertEquals(1, canalSms.getNotificacionesEnviadas());
+        assertEquals(1, canalPush.getNotificacionesEnviadas());
+    }
+
+    @Test
     void testOtroBanco() {
         servicio.transferir(cuentaOrigen, cuentaDestino, 30_000, new TransferenciaOtroBanco());
 

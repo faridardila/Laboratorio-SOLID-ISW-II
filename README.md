@@ -375,3 +375,42 @@ Nuevo producto para menores de edad con recepción de depósitos sin límite y c
 #### Registro de impacto en código (Métrica R2)
 - **Archivos existentes modificados (en `src/`):** **0** (gracias a la jerarquía `CuentaOperativa`, `CobroCuotaManejo` y `TransaccionService` operan sin modificaciones).
 - **Archivos nuevos creados (en `src/`):** **1** (`CuentaInfantil.java`).
+
+---
+
+### R3: Notificaciones push
+
+Además del SMS actual, el cliente debe recibir una notificación push en la aplicación móvil por cada transferencia realizada.
+- **Criterio de aceptación:** Por cada transferencia exitosa aparecen en consola un mensaje `[SMS]` y un mensaje `[PUSH]`.
+
+#### Implementación sobre el código refactorizado
+- Se aplicó el patrón de diseño estructural **Composite** implementando `NotificacionCompuestaService.java` que delega la notificación a una lista de servicios que implementan `NotificacionService` (`SmsNotificacionService`, `PushNotificacionService`).
+- Se crearon las clases `PushGateway.java` (driver de infraestructura simulado) y `PushNotificacionService.java` (adaptador del contrato de notificación).
+  ```java
+  public class NotificacionCompuestaService implements NotificacionService {
+      private final List<NotificacionService> servicios;
+
+      public NotificacionCompuestaService(NotificacionService... servicios) {
+          this.servicios = List.of(servicios);
+      }
+
+      @Override
+      public void notificarTransferencia(Cuenta origen, Cuenta destino, double monto) {
+          for (NotificacionService servicio : servicios) {
+              servicio.notificarTransferencia(origen, destino, monto);
+          }
+      }
+
+      @Override
+      public void notificarCobroCuota(String numeroCuenta) {
+          for (NotificacionService servicio : servicios) {
+              servicio.notificarCobroCuota(numeroCuenta);
+          }
+      }
+  }
+  ```
+- Se añadió la prueba unitaria automatizada `testNotificacionCompuestaSmsYPush()` en `TransaccionServiceTest.java` verificando que ambos canales reciban el evento de notificación sin modificar `TransaccionService`.
+
+#### Registro de impacto en código (Métrica R3)
+- **Archivos existentes modificados (en `src/`):** **0** (`TransaccionService` interactúa con la interfaz `NotificacionService` mediante DIP y OCP).
+- **Archivos nuevos creados (en `src/`):** **3** (`PushGateway.java`, `PushNotificacionService.java`, `NotificacionCompuestaService.java`).
