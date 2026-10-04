@@ -414,3 +414,37 @@ Además del SMS actual, el cliente debe recibir una notificación push en la apl
 #### Registro de impacto en código (Métrica R3)
 - **Archivos existentes modificados (en `src/`):** **0** (`TransaccionService` interactúa con la interfaz `NotificacionService` mediante DIP y OCP).
 - **Archivos nuevos creados (en `src/`):** **3** (`PushGateway.java`, `PushNotificacionService.java`, `NotificacionCompuestaService.java`).
+
+---
+
+### R4: Sistema antifraude
+
+Por requerimiento regulatorio, cada transacción exitosa debe enviarse al sistema antifraude del banco (emitiendo `[ANTIFRAUDE]`), preservando la auditoría regulatoria actual (`[AUDITORIA]`). Las transferencias rechazadas no deben generar ningún registro.
+- **Criterio de aceptación:** Por cada transferencia exitosa aparecen `[AUDITORIA]` y `[ANTIFRAUDE]`. Una transferencia rechazada no genera ninguno.
+
+#### Implementación sobre el código refactorizado
+- Se aplicó nuevamente el patrón **Composite** mediante `AuditoriaCompuestaService.java` implementando `AuditoriaService`.
+- Se creó `AntifraudeAuditoriaService.java` para procesar la evaluación de riesgo.
+  ```java
+  public class AuditoriaCompuestaService implements AuditoriaService {
+      private final List<AuditoriaService> servicios;
+
+      public AuditoriaCompuestaService(AuditoriaService... servicios) {
+          this.servicios = List.of(servicios);
+      }
+
+      @Override
+      public void registrar(String tipo, Cuenta origen, Cuenta destino, double monto) {
+          for (AuditoriaService servicio : servicios) {
+              servicio.registrar(tipo, origen, destino, monto);
+          }
+      }
+  }
+  ```
+- Se añadieron pruebas unitarias en `TransaccionServiceTest.java`:
+  - `testSistemaAntifraudeTransaccionExitosa()`: Comprueba que ambos canales se ejecutan tras una transferencia exitosa.
+  - `testSistemaAntifraudeTransaccionRechazada()`: Comprueba que ante un rechazo por validación de monto, ninguno de los dos servicios registra eventos.
+
+#### Registro de impacto en código (Métrica R4)
+- **Archivos existentes modificados (en `src/`):** **0** (DIP y OCP permiten componer la auditoría en el punto de ensamblado sin tocar `TransaccionService`).
+- **Archivos nuevos creados (en `src/`):** **2** (`AntifraudeAuditoriaService.java`, `AuditoriaCompuestaService.java`).

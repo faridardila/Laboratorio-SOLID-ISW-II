@@ -111,6 +111,55 @@ public class TransaccionServiceTest {
     }
 
     @Test
+    void testSistemaAntifraudeTransaccionExitosa() {
+        // Criterio de aceptación R4: por cada transferencia exitosa aparecen auditoría y antifraude
+        FakeAuditoriaService auditoriaEstandar = new FakeAuditoriaService();
+        FakeAuditoriaService antifraude = new FakeAuditoriaService();
+
+        AuditoriaService auditoriaCompuesta = new AuditoriaCompuestaService(auditoriaEstandar, antifraude);
+
+        TransaccionService servicioConAntifraude = new TransaccionService(
+                validador,
+                fakeRepositorio,
+                dummyComprobante,
+                fakeNotificacion,
+                auditoriaCompuesta
+        );
+
+        servicioConAntifraude.transferir(cuentaOrigen, cuentaDestino, 25_000, new TransferenciaMismoBanco());
+
+        // Ambos servicios deben haber registrado la transacción exitosa
+        assertEquals(1, auditoriaEstandar.getRegistros());
+        assertEquals(1, antifraude.getRegistros());
+    }
+
+    @Test
+    void testSistemaAntifraudeTransaccionRechazada() {
+        // Criterio de aceptación R4: una transferencia rechazada no genera ninguno
+        FakeAuditoriaService auditoriaEstandar = new FakeAuditoriaService();
+        FakeAuditoriaService antifraude = new FakeAuditoriaService();
+
+        AuditoriaService auditoriaCompuesta = new AuditoriaCompuestaService(auditoriaEstandar, antifraude);
+
+        TransaccionService servicioConAntifraude = new TransaccionService(
+                validador,
+                fakeRepositorio,
+                dummyComprobante,
+                fakeNotificacion,
+                auditoriaCompuesta
+        );
+
+        // Intento con monto inválido (> 5.000.000)
+        assertThrows(IllegalArgumentException.class, () ->
+                servicioConAntifraude.transferir(cuentaOrigen, cuentaDestino, 6_000_000, new TransferenciaMismoBanco())
+        );
+
+        // Ninguno debe registrar nada
+        assertEquals(0, auditoriaEstandar.getRegistros());
+        assertEquals(0, antifraude.getRegistros());
+    }
+
+    @Test
     void testOtroBanco() {
         servicio.transferir(cuentaOrigen, cuentaDestino, 30_000, new TransferenciaOtroBanco());
 
@@ -238,6 +287,19 @@ public class TransaccionServiceTest {
         @Override
         public void registrar(String tipo, Cuenta origen, Cuenta destino, double monto) {
             // No imprime nada en consola para mantener tests limpios
+        }
+    }
+
+    static class FakeAuditoriaService implements AuditoriaService {
+        private int registros = 0;
+
+        @Override
+        public void registrar(String tipo, Cuenta origen, Cuenta destino, double monto) {
+            registros++;
+        }
+
+        public int getRegistros() {
+            return registros;
         }
     }
 }
