@@ -221,10 +221,7 @@ Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia
 
 Se separaron las múltiples responsabilidades que concentraba `TransaccionService.transferir` y `CobroCuotaManejo` extrayendo clases dedicadas para cada tarea: `ValidadorTransaccion` (validación de reglas y topes), `ComprobanteService` (generación e impresión del comprobante), `NotificacionService` (envío de notificaciones) y `AuditoriaService` (registro de auditoría). De este modo, cada clase posee una única razón para cambiar y `TransaccionService` actúa exclusivamente como coordinador del flujo transaccional.
 
-**Pregunta de control:**
-> *Después del cambio, describan en una frase qué hace TransaccionService. ¿Aparece la palabra "y"? Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?*
-
-**Respuesta:**
+**Preguntas de control:**
 - **¿Qué hace `TransaccionService` en una sola frase?:** *TransaccionService coordina el flujo de ejecución de una transferencia bancaria entre cuentas.*
 - **¿Aparece la palabra "y"?:** No. Su única responsabilidad es la coordinación del flujo; no asume validaciones por sí misma, no calcula tarifas, no imprime comprobantes, no formatea mensajes ni audita eventos.
 - **Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?:** Se modifica únicamente `ComprobanteService.java`. Ningún otro archivo del sistema se ve alterado.
@@ -238,7 +235,6 @@ Se sustituyó el condicional `switch` de comisiones por polimorfismo mediante el
 **Pregunta de control:**
 > *Si mañana llega un tipo de transferencia nuevo, ¿qué archivos existentes tendrían que modificar? Enumérenlos. Lo ideal es que solo aparezca el punto donde se arma el sistema (el programa principal).*
 
-**Respuesta:**
 1. **`Main.java` (únicamente):** El único archivo existente que se modifica es el punto donde se arma el sistema (el programa principal) para instanciar y enviar el nuevo tipo de transferencia (ej. `new TransferenciaPSE()`).  
 2. **Ningún otro archivo existente se modifica:** El nuevo tipo de transferencia se incorpora creando código nuevo (por ejemplo, `TransferenciaPSE.java`) que implemente la interfaz `TipoTransferencia`. Clases como `TransaccionService.java`, `TipoTransferencia.java`, `ValidadorTransaccion.java`, `ComprobanteService.java`, etc., quedan completamente cerradas a la modificación y abiertas a la extensión.
 
@@ -248,10 +244,7 @@ Se sustituyó el condicional `switch` de comisiones por polimorfismo mediante el
 
 Se rediseñó la jerarquía eliminando el método `retirar` de la clase base `Cuenta` e introduciendo la subclase abstracta `CuentaOperativa` para aquellas cuentas que admiten retiros bajo demanda (`CuentaAhorros`). Al heredar `CDT` directamente de `Cuenta` y tipar las operaciones de retiro en transferencias y cobros con `CuentaOperativa`, se garantiza en tiempo de compilación que los subtipos sean sustituibles sin romper contratos ni arrojar `UnsupportedOperationException`.
 
-**Pregunta de control:**
-> *¿Su solución detecta el error al compilar (o con el verificador de tipos de su lenguaje) o al ejecutar? ¿Por qué es mejor lo primero? Si alguien propone "envolver el retiro en un try/catch e ignorar los CDT", ¿por qué eso no resuelve el problema de diseño?*
-
-**Respuesta:**
+**Preguntas de control:**
 - **¿Su solución detecta el error al compilar o al ejecutar?:**  
   Nuestra solución detecta el error **al compilar** (en tiempo de compilación mediante el sistema de tipos estático de Java). Si un desarrollador intenta incluir un CDT en la lista de cobro (`List.of(ana, luis, cdtAna)`), el compilador emite un error de tipos incompatibles y detiene la construcción del proyecto antes de que llegue a ejecución.
 - **¿Por qué es mejor al compilar?:**  
@@ -265,10 +258,7 @@ Se rediseñó la jerarquía eliminando el método `retirar` de la clase base `Cu
 
 Se segregó la interfaz monolítica `ProductoBancario` separándola en interfaces de rol específicas: `Extractable` (enfocada únicamente en `generarExtracto`) y `ProductoCredito` (para `calcularIntereses` y `pagarCuota`). Así, `TarjetaCredito` y `CreditoVivienda` ya no están obligadas a implementar métodos ficticios o vacíos (`depositar` y `retirar`), y cualquier producto financiero (incluyendo `Cuenta`) puede emitir su extracto mediante `Extractable`.
 
-**Pregunta de control:**
-> *¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez? ¿Qué interfaz necesitó para eso, y por qué no necesitó conocer los demás métodos de cada producto?*
-
-**Respuesta:**
+**Preguntas de control:**
 - **¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez?:**  
   Sí. Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
 - **¿Qué interfaz necesitó para eso?:**  
@@ -282,13 +272,24 @@ Se segregó la interfaz monolítica `ProductoBancario` separándola en interface
 
 Se eliminó la creación de dependencias con `new` dentro de `TransaccionService`, haciendo que dependa exclusivamente de abstracciones (`TransaccionRepositorio`, `NotificacionService`, `ComprobanteService`, `AuditoriaService` y `ValidadorTransaccion`) recibidas mediante inyección por constructor. Con ello, todo el armado del sistema se centraliza en el programa principal (`Main.java`), permitiendo desacoplar la lógica de negocio de la infraestructura tecnológica (Oracle, SMS).
 
-**Pregunta de control:**
-> *¿Cuántas clases concretas conoce ahora TransaccionService? ¿Quién decide si se usa Oracle o si se notifica por SMS? Vuelvan al experimento 2 del bloque 1: ¿ya es posible esa prueba?*
-
-**Respuesta:**
+**Preguntas de control:**
 - **¿Cuántas clases concretas conoce ahora `TransaccionService`?:**  
    No contiene ninguna llamada a `new` ni tiene referencias a clases concretas. Todas sus dependencias (`ValidadorTransaccion`, `TransaccionRepositorio`, `ComprobanteService`, `NotificacionService`, `AuditoriaService`) son interfaces. Sus parámetros en el método `transferir` son clases abstractas (`CuentaOperativa`, `Cuenta`) e interfaces (`TipoTransferencia`).
 - **¿Quién decide si se usa Oracle o si se notifica por SMS?:**  
   El programa principal (`Main.java`), que actúa como el *Composition Root*. `TransaccionService` es totalmente agnóstico a la infraestructura; es `Main` quien decide instanciar `OracleRepositorio` y `SmsNotificacionService` y pasárselos al servicio. Si mañana el banco decide migrar a PostgreSQL o notificar por correo o WhatsApp, solo se cambia la instanciación en `Main`, sin tocar una sola línea de `TransaccionService`.
 - **Vuelvan al experimento 2 del bloque 1: ¿ya es posible esa prueba?:**  
   Sí, ya es completamente posible. En el experimento 2 del bloque 1 era imposible verificar de forma unitaria la comisión de \$7.500 sin conectarse a la base de datos Oracle y disparar un SMS porque las clases estaban acopladas fijamente con `new`. Ahora, gracias a la inyección de dependencias mediante interfaces, un test unitario puede suministrar dobles de prueba (*mocks*, *fakes* o *stubs* en memoria) para el repositorio y el notificador (por ejemplo, `(origen, destino, monto, comision) -> {}`). Esto permite que la prueba unitaria verifique el débito, el crédito y la comisión en milisegundos, de forma aislada, determinista y sin depender de servicios externos.
+
+---
+
+## Bloque 3 - Pruebas unitarias
+
+Se implementaron las 5 pruebas unitarias automatizadas utilizando **JUnit 5** y dobles de prueba (*Fakes/Spies* en memoria) para simular el repositorio y la notificación sin tocar infraestructura real.
+
+**Preguntas de control:**
+- **¿Cuánto tardan en ejecutarse todas sus pruebas?:**  
+  Tardan aproximadamente **135 ms** en total (menos de 0.2 segundos) para descubrir y ejecutar la totalidad de la suite de pruebas.
+- **¿Cuántas líneas de `TransaccionService` tuvieron que cambiar para poder probarla?:**  
+  **Cero (0) líneas.** Gracias a la aplicación de DIP en el Punto de control D, `TransaccionService` ya dependía de abstracciones inyectadas por constructor, por lo que fue 100% testeable sin modificar su código de producción.
+- **¿Qué habría pasado si intentaran estas mismas pruebas en el bloque 1?:**  
+  Habría sido imposible ejecutarlas de forma aislada y rápida: cada test habría intentado conectarse a la base de datos real de Oracle (arrojando fallos de conexión a JDBC) y enviar mensajes SMS reales, demorando segundos, generando costos e impidiendo probar escenarios de error de forma segura y determinista.
