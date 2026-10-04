@@ -48,6 +48,17 @@ public class TransaccionServiceTest {
     }
 
     @Test
+    void testTransferenciaLlave() {
+        // Criterio de aceptación R1: una transferencia de tipo LLAVE por $50.000 descuenta exactamente $50.000 de la cuenta de origen.
+        servicio.transferir(cuentaOrigen, cuentaDestino, 50_000, new TransferenciaLlave());
+
+        assertEquals(50_000, cuentaOrigen.getSaldo(), 0.001); // 100.000 - 50.000 = 50.000 (sin comisión)
+        assertEquals(100_000, cuentaDestino.getSaldo(), 0.001); // 50.000 + 50.000 = 100.000
+        assertEquals(1, fakeRepositorio.getTransacciones().size());
+        assertEquals(0.0, fakeRepositorio.getTransacciones().get(0).comision, 0.001);
+    }
+
+    @Test
     void testOtroBanco() {
         servicio.transferir(cuentaOrigen, cuentaDestino, 30_000, new TransferenciaOtroBanco());
 

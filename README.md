@@ -293,3 +293,45 @@ Se implementaron las 5 pruebas unitarias automatizadas utilizando **JUnit 5** y 
   **Cero (0) líneas.** Gracias a la aplicación de DIP en el Punto de control D, `TransaccionService` ya dependía de abstracciones inyectadas por constructor, por lo que fue 100% testeable sin modificar su código de producción.
 - **¿Qué habría pasado si intentaran estas mismas pruebas en el bloque 1?:**  
   Habría sido imposible ejecutarlas de forma aislada y rápida: cada test habría intentado conectarse a la base de datos real de Oracle (arrojando fallos de conexión a JDBC) y enviar mensajes SMS reales, demorando segundos, generando costos e impidiendo probar escenarios de error de forma segura y determinista.
+
+---
+
+## Bloque 4 - "Negocio pidió cambios"
+
+Evaluación de la mantenibilidad y extensibilidad del diseño refactorizado frente a nuevos requerimientos del negocio.
+
+### 1. Estimación previa sobre el código original (`bloque-0-codigo-base`)
+- Para el R1 Transferencias por llave tendríamos que modificar la clase TransaccionService.java, ya que aquí se encuentra el método transferir.
+- Para el R2 Cuenta infantil no se modifica ninguna de las clases iniciales, sino que se crea una nueva clase.
+- Para el R3 Notificaciones push no se modifica ninguna de las clases iniciales, sino que se crea una nueva clase.
+- Para el R4 Sistema antifraude tendríamos que modificar la clase TransaccionService.java, ya que aquí se encuentra el método transferir  y aquí es dónde se debería agregar la verificación [ANTIFRAUDE]
+- Para el R5 Migración a PostgreSQL tendríamos que modificar la clase TransaccionService.java, ya que esta es la que instancia el repositorio y aparte tendríamos que crear una nueva clase.
+- Para el R6 Pago de servicios públicos tendríamos que modificar la clase TransaccionService.java, ya que esta se encarga de las transferencias y el pago de los servicios es una transferencia. Aparte tocaría crear una interfaz y varias clases que extiendan de esta.
+
+---
+
+### R1: Transferencias por llave
+
+Los clientes pueden transferir fondos utilizando una llave (número celular o documento) en lugar del número de cuenta. Son inmediatas y no tienen comisión.
+- **Criterio de aceptación:** Una transferencia de tipo `LLAVE` por \$50.000 descuenta exactamente \$50.000 de la cuenta de origen (comisión \$0).
+
+#### Implementación sobre el código refactorizado
+- Se creó la clase `TransferenciaLlave.java` implementando la interfaz `TipoTransferencia`:
+  ```java
+  public class TransferenciaLlave implements TipoTransferencia {
+      @Override
+      public String getNombre() {
+          return "LLAVE";
+      }
+
+      @Override
+      public double calcularComision(double monto) {
+          return 0;
+      }
+  }
+  ```
+- Se añadió la prueba unitaria automatizada `testTransferenciaLlave()` en `TransaccionServiceTest.java` validando que el débito en la cuenta de origen sea exactamente de \$50.000 y la comisión registrada sea \$0.
+
+#### Registro de impacto en código (Métrica R1)
+- **Archivos existentes modificados (en `src/`):** **0** (ninguna clase existente del dominio o servicios fue tocada, demostrando cumplimiento estricto de OCP).
+- **Archivos nuevos creados (en `src/`):** **1** (`TransferenciaLlave.java`).
