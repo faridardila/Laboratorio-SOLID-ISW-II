@@ -1,8 +1,10 @@
-public class TarjetaCredito implements ProductoBancario {
+public class TarjetaCredito implements ProductoBancario, ProductoCredito {
     private double deuda;
     private final double cupo;
-    public TarjetaCredito (double cupo) { this.cupo = cupo; }
-    public void depositar (double monto) { }
+
+    public TarjetaCredito (double cupo) {
+        this.cupo = cupo;
+    }
 
     public void retirar (double monto) {
         // avance en efectivo
@@ -10,7 +12,18 @@ public class TarjetaCredito implements ProductoBancario {
         deuda += monto;
     }
 
-    public double calcularIntereses() { return deuda * 0.028; }
-    public void pagarCuota (double monto) { deuda -= monto; }
-    public String generarExtracto() { return "Tarjeta deuda: $" + deuda; }
+    @Override
+    public double calcularIntereses() {
+        return deuda * 0.028;
+    }
+
+    @Override
+    public void pagarCuota (double monto) {
+        deuda -= monto;
+    }
+
+    @Override
+    public String generarExtracto() {
+        return "Tarjeta deuda: $" + deuda;
+    }
 }

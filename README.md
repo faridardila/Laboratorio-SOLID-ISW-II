@@ -290,3 +290,28 @@ Se rediseñó la jerarquía de cuentas para que los subtipos sean sustituibles p
   2. *Acoplamiento indebido:* `CobroCuotaManejo` tendría que asumir que la jerarquía miente y manejar excepciones para decidir qué procesar y qué ignorar.  
   3. *Mal uso de excepciones:* Las excepciones deben utilizarse para circunstancias excepcionales o imprevistas, no para controlar el flujo normal del negocio (saber que los CDT no pagan cuota de manejo).  
   4. *Riesgo de enmascarar errores verdaderos:* Un bloque `try/catch` genérico puede silenciar fallos reales en cuentas que sí debían ser cobradas.
+
+---
+
+### Punto de control I (Interface Segregation Principle)
+
+**Segregación de la interfaz `ProductoBancario`:**
+Se aplicó el Principio de Segregación de Interfaces (ISP) descomponiendo la interfaz `ProductoBancario` (que agrupaba erróneamente métodos de depósito, retiro, cálculo de intereses, pago de cuotas y extractos) en contratos específicos y cohesivos:
+1. `Extractable.java`: Interfaz de rol única enfocada exclusivamente en la capacidad de emitir un extracto (`String generarExtracto()`).
+2. `ProductoCredito.java`: Interfaz especializada para productos financieros de crédito/deuda que define las operaciones pertinentes (`double calcularIntereses()` y `void pagarCuota(double monto)`).
+3. `ProductoBancario.java`: Se refactorizó para extender de `Extractable` como abstracción base de producto financiero, eliminando los métodos que no aplican a todos los productos (`depositar`, `retirar`, `calcularIntereses`, `pagarCuota`).
+4. `Cuenta.java`: Ahora implementa `Extractable`, permitiendo que cualquier tipo de cuenta (ahorros, CDT) pueda emitir su propio extracto bancario.
+5. `TarjetaCredito.java`: Implementa `ProductoBancario` y `ProductoCredito`. Se eliminó el método `depositar(...)` que tenía cuerpo vacío `{ }` porque no aplicaba. Mantiene su método propio `retirar(...)` exclusivamente para la operación de avance en efectivo.
+6. `CreditoVivienda.java`: Implementa `ProductoBancario` y `ProductoCredito`. Se eliminaron definitivamente los métodos `depositar(...)` y `retirar(...)` que contenían implementaciones ficticias `// no aplica`.
+7. `GeneradorExtractos.java`: Servicio encargado de procesar e imprimir extractos para cualquier producto que implemente `Extractable`, sin acoplarse a detalles de crédito o de cuentas.
+
+**Pregunta de control:**
+> *¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez? ¿Qué interfaz necesitó para eso, y por qué no necesitó conocer los demás métodos de cada producto?*
+
+**Respuesta:**
+- **¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez?:**  
+  Sí Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
+- **¿Qué interfaz necesitó para eso?:**  
+  Necesitó la interfaz  `Extractable` (que declara únicamente el método `String generarExtracto()`).
+- **¿Por qué no necesitó conocer los demás métodos de cada producto?:**  
+  Porque para generar un extracto, el generador únicamente requiere consultar la representación del estado o resumen financiero del producto. Conocer si un producto permite `depositar`, `retirar`, `pagarCuota` o `calcularIntereses` viola el Principio de Segregación de Interfaces (ISP), ya que son responsabilidades operativas ajenas a la generación de reportes. Al depender exclusivamente de `Extractable`, el generador está 100% desacoplado de las operaciones transaccionales y de amortización de cada producto, garantizando que cambios en las reglas de retiro, pago o intereses no afecten ni rompan el generador de extractos.
