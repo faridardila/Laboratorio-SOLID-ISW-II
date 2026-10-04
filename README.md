@@ -255,14 +255,9 @@ Se rediseñó la jerarquía eliminando el método `retirar` de la clase base `Cu
 - **¿Su solución detecta el error al compilar o al ejecutar?:**  
   Nuestra solución detecta el error **al compilar** (en tiempo de compilación mediante el sistema de tipos estático de Java). Si un desarrollador intenta incluir un CDT en la lista de cobro (`List.of(ana, luis, cdtAna)`), el compilador emite un error de tipos incompatibles y detiene la construcción del proyecto antes de que llegue a ejecución.
 - **¿Por qué es mejor al compilar?:**  
-  1. *Prevención temprana de fallos (Fail-fast):* Detectar el error en compilación evita que errores de diseño o de lógica lleguen a ambientes de prueba o a producción.  
-  2. *Seguridad en procesos batch críticos:* Si el proceso de cobro se ejecutara de noche para 1.000.000 de cuentas y la cuenta 500.000 fuera un CDT, un fallo en tiempo de ejecución abortaría el proceso, dejando la mitad de las cuentas sin cobrar e inconsistencias operativas. La verificación en compilación garantiza contractualmente que toda cuenta procesada es apta para cobro.  
-  3. *Claridad y contratos expresivos:* La signatura `cobrarMensual(List<? extends CuentaOperativa>)` documenta con precisión la precondición del método sin depender de comentarios ni de validaciones manuales con `instanceof`.
+  Porque permite una prevención temprana de fallos (*Fail-fast*), evitando que inconsistencias de diseño lleguen a producción o interrumpan procesos masivos críticos (como el cobro nocturno de miles de cuentas que abortaría por un CDT). Además, documenta la regla de negocio de forma explícita y contractual en la signatura del método sin necesidad de comprobaciones defensivas en tiempo de ejecución.
 - **¿Por qué "envolver el retiro en un try/catch e ignorar los CDT" no resuelve el problema de diseño?:**  
-  1. *Mantiene la violación de LSP:* No resuelve el defecto del modelo; solo oculta el síntoma. `CDT` seguiría pretendiendo ser un tipo sustituible de una clase que promete retiros, rompiendo el contrato en tiempo de ejecución.  
-  2. *Acoplamiento indebido:* `CobroCuotaManejo` tendría que asumir que la jerarquía miente y manejar excepciones para decidir qué procesar y qué ignorar.  
-  3. *Mal uso de excepciones:* Las excepciones deben utilizarse para circunstancias excepcionales o imprevistas, no para controlar el flujo normal del negocio (saber que los CDT no pagan cuota de manejo).  
-  4. *Riesgo de enmascarar errores verdaderos:* Un bloque `try/catch` genérico puede silenciar fallos reales en cuentas que sí debían ser cobradas.
+  Porque solo oculta el síntoma sin corregir la violación de LSP; `CDT` seguiría simulando ser un subtipo sustituible de una clase que promete retiros. Además, utiliza indebidamente las excepciones como mecanismo de control del flujo normal del negocio y acopla a `CobroCuotaManejo` a una jerarquía engañosa, con el riesgo añadido de silenciar fallos reales en cuentas que sí debían ser cobradas.
 
 ---
 
