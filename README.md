@@ -3,7 +3,8 @@
 **Autores:**
 - Deivid Farid Ardila Herrera
 - Ángel David Beltrán García
-  
+
+**Grupo:** 4  
 **Docente:** Sergio Enrique Vargas Pedraza  
 **Universidad Nacional de Colombia**  
 **Facultad de Ingeniería**  
@@ -211,7 +212,7 @@ private final SmsGateway sms = new SmsGateway();</code></pre>
 
 Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia, implementación y dependencias (new). Puede ser a mano (foto) o con cualquier herramienta (draw.io, PlantUML, Mermaid, etc.). Marquen en rojo las dependencias o herencias que consideren problemáticas.
 
-![Diagrama de clases UML - Código Original](UML%20SOLID.png)
+![Diagrama de clases UML - Código Original](img/UML%20SOLID.png)
 
 ---
 
@@ -219,20 +220,7 @@ Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia
 
 ### Punto de control S (Single Responsibility Principle)
 
-**Separación de responsabilidades identificadas en el sistema (Principio S):**
-
-1. **En `TransaccionService.java`:**
-   Se extrajeron las siguientes clases para encapsular cada una de las responsabilidades individuales que estaban mezcladas en el método `transferir`:
-   - `ValidadorTransaccion.java`: Valida los límites y restricciones del monto de la transferencia.
-   - `CalculadoraComision.java`: Calcula el valor de la comisión según el tipo de transferencia.
-   - `ComprobanteService.java`: Genera e imprime el comprobante de la transacción.
-   - `NotificacionService.java`: Encapsula la lógica de notificación al cliente a través del canal correspondiente (`SmsGateway`).
-   - `AuditoriaService.java`: Registra el log y evento de auditoría con la marca de tiempo.
-   - `TransaccionService.java`: Actúa exclusivamente como orquestador del flujo de la transferencia.
-
-2. **En `CobroCuotaManejo.java`:**
-   - Previamente mezclaba la lógica de negocio (cobro de la cuota debitando de la cuenta) con la notificación/impresión del mensaje a consola.
-   - Se delegó la emisión de la notificación a `NotificacionService.notificarCobroCuota`, dejando a `CobroCuotaManejo` con la única responsabilidad de procesar el débito mensual de las cuentas. Si el banco incorpora un servicio de notificación por correo electrónico o cambia el formato del mensaje, `CobroCuotaManejo` no requiere modificación.
+Se separaron las múltiples responsabilidades que concentraba `TransaccionService.transferir` y `CobroCuotaManejo` extrayendo clases dedicadas para cada tarea: `ValidadorTransaccion` (validación de reglas y topes), `ComprobanteService` (generación e impresión del comprobante), `NotificacionService` (envío de notificaciones) y `AuditoriaService` (registro de auditoría). De este modo, cada clase posee una única razón para cambiar y `TransaccionService` actúa exclusivamente como coordinador del flujo transaccional.
 
 **Pregunta de control:**
 > *Después del cambio, describan en una frase qué hace TransaccionService. ¿Aparece la palabra "y"? Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?*
@@ -246,14 +234,7 @@ Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia
 
 ### Punto de control O (Open/Closed Principle)
 
-**Eliminación del switch para tipos de transferencia:**
-Se sustituyó el bloque condicional `switch` por el patrón Strategy y polimorfismo mediante la interfaz `TipoTransferencia` y sus implementaciones concretas:
-- `TipoTransferencia.java`: Interfaz que define el contrato común (`getNombre()` y `calcularComision(double monto)`).
-- `TransferenciaMismoBanco.java`: Implementación para transferencias dentro del mismo banco (comisión \$0).
-- `TransferenciaOtroBanco.java`: Implementación para transferencias a otros bancos (comisión fija de \$7.500).
-- `TransferenciaInternacional.java`: Implementación para transferencias internacionales (3% del monto + \$25.000).
-- Se eliminó la clase intermedia `CalculadoraComision.java` (y su `switch`) ya que el cálculo ahora reside polimórficamente en cada tipo de transferencia.
-- `TransaccionService.java` ahora recibe cualquier `TipoTransferencia` sin conocer sus reglas internas de cálculo ni acoplarse a un listado cerrado de tipos.
+Se sustituyó el condicional `switch` de comisiones por polimorfismo mediante el patrón Strategy con la interfaz `TipoTransferencia` y sus implementaciones concretas (`TransferenciaMismoBanco`, `TransferenciaOtroBanco` y `TransferenciaInternacional`). De esta forma, `TransaccionService` queda cerrado a la modificación y abierto a la extensión, permitiendo añadir nuevos tipos de transferencias sin alterar el código existente.
 
 **Pregunta de control:**
 > *Si mañana llega un tipo de transferencia nuevo, ¿qué archivos existentes tendrían que modificar? Enumérenlos. Lo ideal es que solo aparezca el punto donde se arma el sistema (el programa principal).*
@@ -266,14 +247,7 @@ Se sustituyó el bloque condicional `switch` por el patrón Strategy y polimorfi
 
 ### Punto de control L (Liskov Substitution Principle)
 
-**Corrección de la jerarquía de cuentas:**
-Se rediseñó la jerarquía de cuentas para que los subtipos sean sustituibles por sus tipos base sin violar contratos ni lanzar excepciones inesperadas:
-- `Cuenta.java`: Clase base abstracta que define las propiedades universales de cualquier cuenta (`numero`, `titular`, `saldo`) y la operación de depósito (`depositar`), común a todos los productos de captación. Se eliminó el método `retirar(double monto)` de la clase base.
-- `CuentaOperativa.java`: Subclase abstracta de `Cuenta` que introduce formalmente la capacidad de retiro bajo demanda (`retirar(double monto)`). Modela cuentas transaccionales que permiten movimientos regulares y débitos.
-- `CuentaAhorros.java`: Extiende de `CuentaOperativa`, heredando de manera legítima y segura la capacidad de retiro y cobro.
-- `CDT.java`: Extiende de `Cuenta`, pero **no** de `CuentaOperativa`. Al no heredar `retirar` como contrato obligatorio de una cuenta operativa, ya no viola el Principio de Sustitución de Liskov ni se ve forzado a arrojar `UnsupportedOperationException`.
-- `CobroCuotaManejo.java`: Su método `cobrarMensual` ahora restringe su parámetro a `List<? extends CuentaOperativa>`. Solo puede recibir cuentas que por contrato admitan retiros y cobro de comisiones.
-- `TransaccionService.java`: El origen de la transferencia se tipó como `CuentaOperativa`, garantizando en tiempo de compilación que no se puedan transferir fondos desde un CDT.
+Se rediseñó la jerarquía eliminando el método `retirar` de la clase base `Cuenta` e introduciendo la subclase abstracta `CuentaOperativa` para aquellas cuentas que admiten retiros bajo demanda (`CuentaAhorros`). Al heredar `CDT` directamente de `Cuenta` y tipar las operaciones de retiro en transferencias y cobros con `CuentaOperativa`, se garantiza en tiempo de compilación que los subtipos sean sustituibles sin romper contratos ni arrojar `UnsupportedOperationException`.
 
 **Pregunta de control:**
 > *¿Su solución detecta el error al compilar (o con el verificador de tipos de su lenguaje) o al ejecutar? ¿Por qué es mejor lo primero? Si alguien propone "envolver el retiro en un try/catch e ignorar los CDT", ¿por qué eso no resuelve el problema de diseño?*
@@ -295,23 +269,32 @@ Se rediseñó la jerarquía de cuentas para que los subtipos sean sustituibles p
 
 ### Punto de control I (Interface Segregation Principle)
 
-**Segregación de la interfaz `ProductoBancario`:**
-Se aplicó el Principio de Segregación de Interfaces (ISP) descomponiendo la interfaz `ProductoBancario` (que agrupaba erróneamente métodos de depósito, retiro, cálculo de intereses, pago de cuotas y extractos) en contratos específicos y cohesivos:
-1. `Extractable.java`: Interfaz de rol única enfocada exclusivamente en la capacidad de emitir un extracto (`String generarExtracto()`).
-2. `ProductoCredito.java`: Interfaz especializada para productos financieros de crédito/deuda que define las operaciones pertinentes (`double calcularIntereses()` y `void pagarCuota(double monto)`).
-3. `ProductoBancario.java`: Se refactorizó para extender de `Extractable` como abstracción base de producto financiero, eliminando los métodos que no aplican a todos los productos (`depositar`, `retirar`, `calcularIntereses`, `pagarCuota`).
-4. `Cuenta.java`: Ahora implementa `Extractable`, permitiendo que cualquier tipo de cuenta (ahorros, CDT) pueda emitir su propio extracto bancario.
-5. `TarjetaCredito.java`: Implementa `ProductoBancario` y `ProductoCredito`. Se eliminó el método `depositar(...)` que tenía cuerpo vacío `{ }` porque no aplicaba. Mantiene su método propio `retirar(...)` exclusivamente para la operación de avance en efectivo.
-6. `CreditoVivienda.java`: Implementa `ProductoBancario` y `ProductoCredito`. Se eliminaron definitivamente los métodos `depositar(...)` y `retirar(...)` que contenían implementaciones ficticias `// no aplica`.
-7. `GeneradorExtractos.java`: Servicio encargado de procesar e imprimir extractos para cualquier producto que implemente `Extractable`, sin acoplarse a detalles de crédito o de cuentas.
+Se segregó la interfaz monolítica `ProductoBancario` separándola en interfaces de rol específicas: `Extractable` (enfocada únicamente en `generarExtracto`) y `ProductoCredito` (para `calcularIntereses` y `pagarCuota`). Así, `TarjetaCredito` y `CreditoVivienda` ya no están obligadas a implementar métodos ficticios o vacíos (`depositar` y `retirar`), y cualquier producto financiero (incluyendo `Cuenta`) puede emitir su extracto mediante `Extractable`.
 
 **Pregunta de control:**
 > *¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez? ¿Qué interfaz necesitó para eso, y por qué no necesitó conocer los demás métodos de cada producto?*
 
 **Respuesta:**
 - **¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez?:**  
-  Sí Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
+  **Sí.** Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
 - **¿Qué interfaz necesitó para eso?:**  
-  Necesitó la interfaz  `Extractable` (que declara únicamente el método `String generarExtracto()`).
+  Necesitó la interfaz segregada **`Extractable`** (que declara únicamente el método `String generarExtracto()`).
 - **¿Por qué no necesitó conocer los demás métodos de cada producto?:**  
   Porque para generar un extracto, el generador únicamente requiere consultar la representación del estado o resumen financiero del producto. Conocer si un producto permite `depositar`, `retirar`, `pagarCuota` o `calcularIntereses` viola el Principio de Segregación de Interfaces (ISP), ya que son responsabilidades operativas ajenas a la generación de reportes. Al depender exclusivamente de `Extractable`, el generador está 100% desacoplado de las operaciones transaccionales y de amortización de cada producto, garantizando que cambios en las reglas de retiro, pago o intereses no afecten ni rompan el generador de extractos.
+
+---
+
+### Punto de control D (Dependency Inversion Principle)
+
+Se eliminó la creación de dependencias con `new` dentro de `TransaccionService`, haciendo que dependa exclusivamente de abstracciones (`TransaccionRepositorio`, `NotificacionService`, `ComprobanteService`, `AuditoriaService` y `ValidadorTransaccion`) recibidas mediante inyección por constructor. Con ello, todo el armado del sistema se centraliza en el programa principal (`Main.java`), permitiendo desacoplar la lógica de negocio de la infraestructura tecnológica (Oracle, SMS).
+
+**Pregunta de control:**
+> *¿Cuántas clases concretas conoce ahora TransaccionService? ¿Quién decide si se usa Oracle o si se notifica por SMS? Vuelvan al experimento 2 del bloque 1: ¿ya es posible esa prueba?*
+
+**Respuesta:**
+- **¿Cuántas clases concretas conoce ahora `TransaccionService`?:**  
+  **Cero (0).** `TransaccionService` no contiene ninguna llamada a `new` ni tiene referencias a clases concretas. Todas sus dependencias (`ValidadorTransaccion`, `TransaccionRepositorio`, `ComprobanteService`, `NotificacionService`, `AuditoriaService`) son interfaces. Sus parámetros en el método `transferir` son clases abstractas (`CuentaOperativa`, `Cuenta`) e interfaces (`TipoTransferencia`). Cumple rigurosamente la regla: *"Los módulos de alto nivel no deben depender de módulos de bajo nivel; ambos deben depender de abstracciones"*.
+- **¿Quién decide si se usa Oracle o si se notifica por SMS?:**  
+  **El programa principal (`Main.java`)**, que actúa como el *Composition Root* (punto centralizado de armado del sistema). `TransaccionService` es totalmente agnóstico a la infraestructura; es `Main` quien decide instanciar `OracleRepositorio` y `SmsNotificacionService` y pasárselos al servicio. Si mañana el banco decide migrar a PostgreSQL o notificar por correo o WhatsApp, solo se cambia la instanciación en `Main`, sin tocar una sola línea de `TransaccionService`.
+- **Vuelvan al experimento 2 del bloque 1: ¿ya es posible esa prueba?:**  
+  **Sí, ya es completamente posible.** En el experimento 2 del bloque 1 era imposible verificar de forma unitaria la comisión de \$7.500 sin conectarse a la base de datos Oracle y disparar un SMS porque las clases estaban acopladas fijamente con `new`. Ahora, gracias a la inyección de dependencias mediante interfaces, un test unitario puede suministrar dobles de prueba (*mocks*, *fakes* o *stubs* en memoria) para el repositorio y el notificador (por ejemplo, `(origen, destino, monto, comision) -> {}`). Esto permite que la prueba unitaria verifique el débito, el crédito y la comisión en milisegundos, de forma aislada, determinista y sin depender de servicios externos.

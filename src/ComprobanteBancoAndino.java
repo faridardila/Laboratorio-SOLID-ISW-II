@@ -1,4 +1,5 @@
-public class ComprobanteService {
+public class ComprobanteBancoAndino implements ComprobanteService {
+    @Override
     public void imprimir(Cuenta origen, Cuenta destino, double monto, double comision) {
         System.out.println("===== BANCO ANDINO COMPROBANTE =====");
         System.out.println("Origen: " + origen.getNumero());
