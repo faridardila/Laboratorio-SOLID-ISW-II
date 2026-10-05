@@ -447,10 +447,10 @@ Al leer el código se observó que un pago de servicios es el mismo flujo que un
 ### Diagramas UML
 
 #### Diagrama original
-![Diagrama de clases UML - Código original](img/UML%20SOLID.png)
+![Diagrama de clases UML - Código](img/UML%20SOLID.png) 
 
 #### Diagrama final
-![Diagrama de clases UML - Código refactorizado](img\UML_final.png)
+![Diagrama de clases UML - Código refactorizado](img/UML_final.png)
 
 ### Tabla comparativa
 | Métrica | Antes | Después |
