@@ -191,7 +191,7 @@ private final SmsGateway sms = new SmsGateway();</code></pre>
    Generaría la misma excepción que en el caso anterior, por lo que no se cobraría el medio millón de cuentas faltantes.
 
 2. **La prueba imposible. Intenten escribir una prueba unitaria que verifique que una transferencia a otro banco cobra $7.500 de comisión, con una condición: la prueba no puede conectarse a Oracle ni enviar un SMS. ¿Lo lograron? ¿Qué les impide hacerlo?**  
-   Cuando creamos un test, normalmente los creamos tipo caja negra, es decir, definimos lo qué ingresa y el resultado esperado. Estos datos son determinados a través de los parámetros del método, la conexión a Oracle o SMS no depende de los parámetros de ingreso al método transferir. Lo anterior, lleva a que no podamos evitar la conexión a los servicios sin tocar directamente el código del método.
+   Cuando creamos un test, normalmente los creamos tipo caja negra, es decir, definimos lo qué ingresa y el resultado esperado. Estos datos son determinados a través de los parámetros del método, la conexión a Oracle o SMS no depende de los parámetros de ingreso al método transferir. Lo anterior lleva a que no podamos evitar la conexión a los servicios sin tocar directamente el código del método.
 
 ---
 
@@ -219,80 +219,80 @@ Dibujen el diagrama de clases UML del código base: clases, interfaces, herencia
 
 ### Punto de control S (Single Responsibility Principle)
 
-Se separaron las múltiples responsabilidades que concentraba `TransaccionService.transferir` y `CobroCuotaManejo` extrayendo clases dedicadas para cada tarea: `ValidadorTransaccion` (validación de reglas y topes), `ComprobanteService` (generación e impresión del comprobante), `NotificacionService` (envío de notificaciones) y `AuditoriaService` (registro de auditoría). De este modo, cada clase posee una única razón para cambiar y `TransaccionService` actúa exclusivamente como coordinador del flujo transaccional.
+Se separaron las múltiples responsabilidades que concentraba `TransaccionService.transferir` y `CobroCuotaManejo` extrayendo clases dedicadas para cada tarea: `ValidadorTransaccion` (validación de reglas y topes), `ComprobanteService` (generación e impresión del comprobante), `NotificacionService` (envío de notificaciones) y `AuditoriaService` (registro de auditoría).
 
 **Preguntas de control:**
-- **¿Qué hace `TransaccionService` en una sola frase?:** *TransaccionService coordina el flujo de ejecución de una transferencia bancaria entre cuentas.*
-- **¿Aparece la palabra "y"?:** No. Su única responsabilidad es la coordinación del flujo; no asume validaciones por sí misma, no calcula tarifas, no imprime comprobantes, no formatea mensajes ni audita eventos.
+- **¿Qué hace `TransaccionService` en una sola frase?:** TransaccionService coordina el flujo de ejecución de una transferencia bancaria entre cuentas.
+- **¿Aparece la palabra "y"?:** No. Su única responsabilidad es la coordinación del flujo.
 - **Si el área legal pide cambiar el formato del comprobante, ¿qué archivo tocan?:** Se modifica únicamente `ComprobanteService.java`. Ningún otro archivo del sistema se ve alterado.
 
 ---
 
 ### Punto de control O (Open/Closed Principle)
 
-Se sustituyó el condicional `switch` de comisiones por polimorfismo mediante el patrón Strategy con la interfaz `TipoTransferencia` y sus implementaciones concretas (`TransferenciaMismoBanco`, `TransferenciaOtroBanco` y `TransferenciaInternacional`). De esta forma, `TransaccionService` queda cerrado a la modificación y abierto a la extensión, permitiendo añadir nuevos tipos de transferencias sin alterar el código existente.
+Se sustituyó el condicional `switch` de comisiones con la interfaz `TipoTransferencia` y sus implementaciones (`TransferenciaMismoBanco`, `TransferenciaOtroBanco` y `TransferenciaInternacional`). De esta forma, `TransaccionService` queda cerrado a la modificación y abierto a la extensión.
 
 **Pregunta de control:**
-> *Si mañana llega un tipo de transferencia nuevo, ¿qué archivos existentes tendrían que modificar? Enumérenlos. Lo ideal es que solo aparezca el punto donde se arma el sistema (el programa principal).*
+Si mañana llega un tipo de transferencia nuevo, ¿qué archivos existentes tendrían que modificar? Enumérenlos. Lo ideal es que solo aparezca el punto donde se arma el sistema (el programa principal).
 
-1. **`Main.java` (únicamente):** El único archivo existente que se modifica es el punto donde se arma el sistema (el programa principal) para instanciar y enviar el nuevo tipo de transferencia (ej. `new TransferenciaPSE()`).  
-2. **Ningún otro archivo existente se modifica:** El nuevo tipo de transferencia se incorpora creando código nuevo (por ejemplo, `TransferenciaPSE.java`) que implemente la interfaz `TipoTransferencia`. Clases como `TransaccionService.java`, `TipoTransferencia.java`, `ValidadorTransaccion.java`, `ComprobanteService.java`, etc., quedan completamente cerradas a la modificación y abiertas a la extensión.
+1. `Main.java`: el único archivo existente que se modifica es el punto donde se arma el sistema (el programa principal) para instanciar y enviar el nuevo tipo de transferencia (ej. `new TransferenciaPSE()`).  
+2. Ningún otro archivo existente se modifica, ya que el nuevo tipo de transferencia se incorpora creando código nuevo (por ejemplo, `TransferenciaPSE.java`) que implemente la interfaz `TipoTransferencia`.
 
 ---
 
 ### Punto de control L (Liskov Substitution Principle)
 
-Se rediseñó la jerarquía eliminando el método `retirar` de la clase base `Cuenta` e introduciendo la subclase abstracta `CuentaOperativa` para aquellas cuentas que admiten retiros bajo demanda (`CuentaAhorros`). Al heredar `CDT` directamente de `Cuenta` y tipar las operaciones de retiro en transferencias y cobros con `CuentaOperativa`, se garantiza en tiempo de compilación que los subtipos sean sustituibles sin romper contratos ni arrojar `UnsupportedOperationException`.
+Se rediseñó la jerarquía eliminando el método `retirar` de la clase `Cuenta` e introduciendo la subclase abstracta `CuentaOperativa` para aquellas cuentas que admiten retiros (`CuentaAhorros`). 
 
 **Preguntas de control:**
 - **¿Su solución detecta el error al compilar o al ejecutar?:**  
-  Nuestra solución detecta el error **al compilar** (en tiempo de compilación mediante el sistema de tipos estático de Java). Si un desarrollador intenta incluir un CDT en la lista de cobro (`List.of(ana, luis, cdtAna)`), el compilador emite un error de tipos incompatibles y detiene la construcción del proyecto antes de que llegue a ejecución.
+  Si, ya que si un desarrollador intenta incluir un CDT en la lista de cobro (`List.of(ana, luis, cdtAna)`), el compilador emite un error de tipos incompatibles y detiene la construcción del proyecto antes de que llegue a ejecución.
 - **¿Por qué es mejor al compilar?:**  
-  Porque permite una prevención temprana de fallos (*Fail-fast*), evitando que inconsistencias de diseño lleguen a producción o interrumpan procesos masivos críticos (como el cobro nocturno de miles de cuentas que abortaría por un CDT). Además, documenta la regla de negocio de forma explícita y contractual en la signatura del método sin necesidad de comprobaciones defensivas en tiempo de ejecución.
+  Porque permite una prevención temprana de fallos, evitando que inconsistencias de diseño lleguen a producción o interrumpan procesos masivos críticos comom lo sería el cobro nocturno de miles de cuentas que abortaría por un CDT. 
 - **¿Por qué "envolver el retiro en un try/catch e ignorar los CDT" no resuelve el problema de diseño?:**  
-  Porque solo oculta el síntoma sin corregir la violación de LSP; `CDT` seguiría simulando ser un subtipo sustituible de una clase que promete retiros. Además, utiliza indebidamente las excepciones como mecanismo de control del flujo normal del negocio y acopla a `CobroCuotaManejo` a una jerarquía engañosa, con el riesgo añadido de silenciar fallos reales en cuentas que sí debían ser cobradas.
+  Porque solo oculta el síntoma sin corregir la violación de LSP. `CDT` seguiría simulando ser un subtipo sustituible de una clase que promete retiros. Además, utiliza indebidamente las excepciones como mecanismo de control del flujo normal del negocio y acopla a `CobroCuotaManejo` a una jerarquía engañosa, con el riesgo añadido de silenciar fallos reales en cuentas que sí debían ser cobradas.
 
 ---
 
 ### Punto de control I (Interface Segregation Principle)
 
-Se segregó la interfaz monolítica `ProductoBancario` separándola en interfaces de rol específicas: `Extractable` (enfocada únicamente en `generarExtracto`) y `ProductoCredito` (para `calcularIntereses` y `pagarCuota`). Así, `TarjetaCredito` y `CreditoVivienda` ya no están obligadas a implementar métodos ficticios o vacíos (`depositar` y `retirar`), y cualquier producto financiero (incluyendo `Cuenta`) puede emitir su extracto mediante `Extractable`.
+Se segregó la interfaz monolítica `ProductoBancario` separándola en interfaces de rol específicas: `Extractable` (enfocada únicamente en `generarExtracto`) y `ProductoCredito` (para `calcularIntereses` y `pagarCuota`). Así, `TarjetaCredito` y `CreditoVivienda` ya no están obligadas a implementar métodos vacíos, y cualquier producto financiero (incluyendo `Cuenta`) puede emitir su extracto mediante `Extractable`.
 
 **Preguntas de control:**
 - **¿Pudieron lograr que un mismo generador de extractos funcione para cuentas, tarjetas y créditos a la vez?:**  
-  Sí. Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno de manera uniforme y transparente.
+  Sí. Tanto las cuentas (`Cuenta`), las tarjetas (`TarjetaCredito`) como los créditos (`CreditoVivienda`) implementan la interfaz común `Extractable`. Gracias al polimorfismo, una misma rutina o servicio (`GeneradorExtractos`) puede recibir una colección heterogénea conteniendo cuentas, tarjetas y créditos hipotecarios, e imprimir el extracto de cada uno sin problemas.
 - **¿Qué interfaz necesitó para eso?:**  
-  Necesitó la interfaz segregada **`Extractable`** (que declara únicamente el método `String generarExtracto()`).
+  Se necesita **`Extractable`**.
 - **¿Por qué no necesitó conocer los demás métodos de cada producto?:**  
-  Porque para generar un extracto, el generador únicamente requiere consultar la representación del estado o resumen financiero del producto. Conocer si un producto permite `depositar`, `retirar`, `pagarCuota` o `calcularIntereses` viola el Principio de Segregación de Interfaces (ISP), ya que son responsabilidades operativas ajenas a la generación de reportes. Al depender exclusivamente de `Extractable`, el generador está 100% desacoplado de las operaciones transaccionales y de amortización de cada producto, garantizando que cambios en las reglas de retiro, pago o intereses no afecten ni rompan el generador de extractos.
+  Porque al depender exclusivamente de `Extractable`, el generador está 100% desacoplado de las operaciones transaccionales y de amortización de cada producto, garantizando que cambios en las reglas de retiro, pago o intereses no afecten ni rompan el generador de extractos.
 
 ---
 
 ### Punto de control D (Dependency Inversion Principle)
 
-Se eliminó la creación de dependencias con `new` dentro de `TransaccionService`, haciendo que dependa exclusivamente de abstracciones (`TransaccionRepositorio`, `NotificacionService`, `ComprobanteService`, `AuditoriaService` y `ValidadorTransaccion`) recibidas mediante inyección por constructor. Con ello, todo el armado del sistema se centraliza en el programa principal (`Main.java`), permitiendo desacoplar la lógica de negocio de la infraestructura tecnológica (Oracle, SMS).
+Se eliminó la creación de dependencias con `new` dentro de `TransaccionService`, haciendo que dependa exclusivamente de abstracciones. Con ello, todo el armado del sistema se centraliza en el main, permitiendo desacoplar la lógica de negocio de la infraestructura tecnológica (Oracle, SMS).
 
 **Preguntas de control:**
 - **¿Cuántas clases concretas conoce ahora `TransaccionService`?:**  
-   No contiene ninguna llamada a `new` ni tiene referencias a clases concretas. Todas sus dependencias (`ValidadorTransaccion`, `TransaccionRepositorio`, `ComprobanteService`, `NotificacionService`, `AuditoriaService`) son interfaces. Sus parámetros en el método `transferir` son clases abstractas (`CuentaOperativa`, `Cuenta`) e interfaces (`TipoTransferencia`).
+   No contiene ninguna llamada a `new` ni tiene referencias a clases concretas. Todas sus dependencias son interfaces. Sus parámetros en el método `transferir` son clases abstractas (`CuentaOperativa`, `Cuenta`) e interfaces (`TipoTransferencia`).
 - **¿Quién decide si se usa Oracle o si se notifica por SMS?:**  
-  El programa principal (`Main.java`), que actúa como el *Composition Root*. `TransaccionService` es totalmente agnóstico a la infraestructura; es `Main` quien decide instanciar `OracleRepositorio` y `SmsNotificacionService` y pasárselos al servicio. Si mañana el banco decide migrar a PostgreSQL o notificar por correo o WhatsApp, solo se cambia la instanciación en `Main`, sin tocar una sola línea de `TransaccionService`.
+  El main, ya que es quien decide instanciar `OracleRepositorio` y `SmsNotificacionService` y pasárselos al servicio. Si mañana el banco decide migrar a PostgreSQL o notificar por correo o WhatsApp, solo se cambia la instanciación en `Main`.
 - **Vuelvan al experimento 2 del bloque 1: ¿ya es posible esa prueba?:**  
-  Sí, ya es completamente posible. En el experimento 2 del bloque 1 era imposible verificar de forma unitaria la comisión de \$7.500 sin conectarse a la base de datos Oracle y disparar un SMS porque las clases estaban acopladas fijamente con `new`. Ahora, gracias a la inyección de dependencias mediante interfaces, un test unitario puede suministrar dobles de prueba (*mocks*, *fakes* o *stubs* en memoria) para el repositorio y el notificador (por ejemplo, `(origen, destino, monto, comision) -> {}`). Esto permite que la prueba unitaria verifique el débito, el crédito y la comisión en milisegundos, de forma aislada, determinista y sin depender de servicios externos.
+  Sí, ya es completamente posible, ya que gracias a la inyección de dependencias mediante interfaces, un test unitario puede suministrar dobles de prueba para el repositorio y el notificador. Esto permite que la prueba unitaria verifique el débito, el crédito y la comisión sin depender de servicios externos.
 
 ---
 
 ## Bloque 3 - Pruebas unitarias
 
-Se implementaron las 5 pruebas unitarias automatizadas utilizando **JUnit 5** y dobles de prueba (*Fakes/Spies* en memoria) para simular el repositorio y la notificación sin tocar infraestructura real.
+Se implementaron las 5 pruebas unitarias automatizadas utilizando **JUnit 5** y dobles de prueba para simular el repositorio y la notificación sin tocar infraestructura real.
 
 **Preguntas de control:**
 - **¿Cuánto tardan en ejecutarse todas sus pruebas?:**  
-  Tardan aproximadamente **135 ms** en total (menos de 0.2 segundos) para descubrir y ejecutar la totalidad de la suite de pruebas.
+  Tardan aproximadamente 135 ms en total para descubrir y ejecutar la totalidad de la suite de pruebas.
 - **¿Cuántas líneas de `TransaccionService` tuvieron que cambiar para poder probarla?:**  
-  **Cero (0) líneas.** Gracias a la aplicación de DIP en el Punto de control D, `TransaccionService` ya dependía de abstracciones inyectadas por constructor, por lo que fue 100% testeable sin modificar su código de producción.
+  Ninguna linea, ya que gracias a la aplicación de DIP en el Punto de control D, `TransaccionService` ya dependía de abstracciones inyectadas por constructor, por lo que fue 100% testeable..
 - **¿Qué habría pasado si intentaran estas mismas pruebas en el bloque 1?:**  
-  Habría sido imposible ejecutarlas de forma aislada y rápida: cada test habría intentado conectarse a la base de datos real de Oracle (arrojando fallos de conexión a JDBC) y enviar mensajes SMS reales, demorando segundos, generando costos e impidiendo probar escenarios de error de forma segura y determinista.
+  Habría sido imposible ejecutarlas de forma aislada y rápida, porque cada test habría intentado conectarse a la base de datos real de Oracle y enviar mensajes SMS reales, impidiendo probar escenarios de error.
 
 ---
 
@@ -316,25 +316,12 @@ Los clientes pueden transferir fondos utilizando una llave (número celular o do
 - **Criterio de aceptación:** Una transferencia de tipo `LLAVE` por \$50.000 descuenta exactamente \$50.000 de la cuenta de origen (comisión \$0).
 
 #### Implementación sobre el código refactorizado
-- Se creó la clase `TransferenciaLlave.java` implementando la interfaz `TipoTransferencia`:
-  ```java
-  public class TransferenciaLlave implements TipoTransferencia {
-      @Override
-      public String getNombre() {
-          return "LLAVE";
-      }
-
-      @Override
-      public double calcularComision(double monto) {
-          return 0;
-      }
-  }
-  ```
+- Se creó la clase `TransferenciaLlave.java` implementando la interfaz `TipoTransferencia`
 - Se añadió la prueba unitaria automatizada `testTransferenciaLlave()` en `TransaccionServiceTest.java` validando que el débito en la cuenta de origen sea exactamente de \$50.000 y la comisión registrada sea \$0.
 
 #### Registro de impacto en código (Métrica R1)
-- **Archivos existentes modificados (en `src/`):** **0** (ninguna clase existente del dominio o servicios fue tocada, demostrando cumplimiento estricto de OCP).
-- **Archivos nuevos creados (en `src/`):** **1** (`TransferenciaLlave.java`).
+- **Archivos existentes modificados (en `src/`):** 0.
+- **Archivos nuevos creados (en `src/`):** 1 (`TransferenciaLlave.java`).
 
 ---
 
@@ -345,36 +332,13 @@ Nuevo producto para menores de edad con recepción de depósitos sin límite y c
 
 #### Implementación sobre el código refactorizado
 - Se creó la clase `CuentaInfantil.java` que extiende de `CuentaOperativa`:
-  ```java
-  public class CuentaInfantil extends CuentaOperativa {
-      private static final double TOPE_DIARIO_RETIRO = 200_000;
-      private double totalRetiradoHoy = 0;
-
-      public CuentaInfantil(String numero, String titular, double saldoInicial) {
-          super(numero, titular, saldoInicial);
-      }
-
-      @Override
-      public void retirar(double monto) {
-          if (totalRetiradoHoy + monto > TOPE_DIARIO_RETIRO) {
-              throw new IllegalStateException("Supera el tope diario de retiro de $" + TOPE_DIARIO_RETIRO);
-          }
-          super.retirar(monto);
-          totalRetiradoHoy += monto;
-      }
-
-      public double getTotalRetiradoHoy() {
-          return totalRetiradoHoy;
-      }
-  }
-  ```
-- Se añadieron pruebas unitarias en `TransaccionServiceTest.java`:
+- Se añadieron pruebas unitarias en `TransaccionServiceTest.java`
   - `testCuentaInfantilTopeRetiro()`: Valida el rechazo de retiros que excedan el tope diario y la inmutabilidad del saldo.
   - `testCuentaInfantilComoOrigenTransferenciaYCuotaManejo()`: Valida que pueda ser sustituida como origen de transferencias y participar en el cobro de cuota de manejo respetando LSP.
 
 #### Registro de impacto en código (Métrica R2)
-- **Archivos existentes modificados (en `src/`):** **0** (gracias a la jerarquía `CuentaOperativa`, `CobroCuotaManejo` y `TransaccionService` operan sin modificaciones).
-- **Archivos nuevos creados (en `src/`):** **1** (`CuentaInfantil.java`).
+- **Archivos existentes modificados (en `src/`):** 0
+- **Archivos nuevos creados (en `src/`):** 1 (`CuentaInfantil.java`).
 
 ---
 
@@ -386,34 +350,11 @@ Además del SMS actual, el cliente debe recibir una notificación push en la apl
 #### Implementación sobre el código refactorizado
 - Se aplicó el patrón de diseño estructural **Composite** implementando `NotificacionCompuestaService.java` que delega la notificación a una lista de servicios que implementan `NotificacionService` (`SmsNotificacionService`, `PushNotificacionService`).
 - Se crearon las clases `PushGateway.java` (driver de infraestructura simulado) y `PushNotificacionService.java` (adaptador del contrato de notificación).
-  ```java
-  public class NotificacionCompuestaService implements NotificacionService {
-      private final List<NotificacionService> servicios;
-
-      public NotificacionCompuestaService(NotificacionService... servicios) {
-          this.servicios = List.of(servicios);
-      }
-
-      @Override
-      public void notificarTransferencia(Cuenta origen, Cuenta destino, double monto) {
-          for (NotificacionService servicio : servicios) {
-              servicio.notificarTransferencia(origen, destino, monto);
-          }
-      }
-
-      @Override
-      public void notificarCobroCuota(String numeroCuenta) {
-          for (NotificacionService servicio : servicios) {
-              servicio.notificarCobroCuota(numeroCuenta);
-          }
-      }
-  }
-  ```
 - Se añadió la prueba unitaria automatizada `testNotificacionCompuestaSmsYPush()` en `TransaccionServiceTest.java` verificando que ambos canales reciban el evento de notificación sin modificar `TransaccionService`.
 
 #### Registro de impacto en código (Métrica R3)
-- **Archivos existentes modificados (en `src/`):** **0** (`TransaccionService` interactúa con la interfaz `NotificacionService` mediante DIP y OCP).
-- **Archivos nuevos creados (en `src/`):** **3** (`PushGateway.java`, `PushNotificacionService.java`, `NotificacionCompuestaService.java`).
+- **Archivos existentes modificados (en `src/`):** 0 
+- **Archivos nuevos creados (en `src/`):** 3 (`PushGateway.java`, `PushNotificacionService.java`, `NotificacionCompuestaService.java`).
 
 ---
 
@@ -425,23 +366,7 @@ Por requerimiento regulatorio, cada transacción exitosa debe enviarse al sistem
 #### Implementación sobre el código refactorizado
 - Se aplicó nuevamente el patrón **Composite** mediante `AuditoriaCompuestaService.java` implementando `AuditoriaService`.
 - Se creó `AntifraudeAuditoriaService.java` para procesar la evaluación de riesgo.
-  ```java
-  public class AuditoriaCompuestaService implements AuditoriaService {
-      private final List<AuditoriaService> servicios;
-
-      public AuditoriaCompuestaService(AuditoriaService... servicios) {
-          this.servicios = List.of(servicios);
-      }
-
-      @Override
-      public void registrar(String tipo, Cuenta origen, Cuenta destino, double monto) {
-          for (AuditoriaService servicio : servicios) {
-              servicio.registrar(tipo, origen, destino, monto);
-          }
-      }
-  }
-  ```
-- Se añadieron pruebas unitarias en `TransaccionServiceTest.java`:
+- Se añadieron pruebas unitarias en `TransaccionServiceTest.java`
   - `testSistemaAntifraudeTransaccionExitosa()`: Comprueba que ambos canales se ejecutan tras una transferencia exitosa.
   - `testSistemaAntifraudeTransaccionRechazada()`: Comprueba que ante un rechazo por validación de monto, ninguno de los dos servicios registra eventos.
 
@@ -457,19 +382,107 @@ El banco migra el motor de persistencia a PostgreSQL (emitiendo `[POSTGRES]`). S
 - **Criterio de aceptación:** El programa guarda en PostgreSQL y las pruebas unitarias no cambian.
 
 #### Implementación sobre el código refactorizado
-- Se creó la clase `PostgreSqlRepositorio.java` implementando la interfaz `TransaccionRepositorio`:
-  ```java
-  public class PostgreSqlRepositorio implements TransaccionRepositorio {
-      @Override
-      public void guardarTransaccion(String origen, String destino, double monto, double comision) {
-          System.out.println("[POSTGRES] Conectando a jdbc:postgresql://prod-db:5432/BANCO ...");
-          System.out.println("[POSTGRES] INSERT INTO transacciones VALUES ('" + origen + "', '" + destino + "', " + monto + ", " + comision + ")");
-      }
-  }
-  ```
+- Se creó la clase `PostgreSqlRepositorio.java` implementando la interfaz `TransaccionRepositorio`
 - Gracias al Principio de Inversión de Dependencias (DIP), cambiar de Oracle a PostgreSQL solo requiere instanciar `new PostgreSqlRepositorio()` en el punto de ensamblado (`Main.java`). `TransaccionService` y la suite de pruebas unitarias permanecen completamente inalteradas.
 - Se añadió la prueba unitaria `testPostgreSqlRepositorio()` en `TransaccionServiceTest.java`.
 
 #### Registro de impacto en código (Métrica R5)
 - **Archivos existentes modificados (en `src/`):** **0** (`TransaccionRepositorio` y `TransaccionService` permanecen cerradas y sin cambios).
 - **Archivos nuevos creados (en `src/`):** **1** (`PostgreSqlRepositorio.java`).
+
+
+> **Nota:** Todos los commits se cargaron en cuestión de minutos porque ya teníamos resueltos todos los ejercicios del Bloque 4, no habíamos leído que un commit por cada requerimiento. Así que se envió un commit tras commit con solo la información necesaria.
+
+| Req. | Archivos a modificar en el código original (estimado) | Archivos existentes modificados (real) | Archivos nuevos | ¿Se rompió alguna prueba? |
+| :--- | :--- | :--- | :--- | :--- |
+| **R1** | 1 (`TransaccionService.java`) | 0 | 1 (`TransferenciaLlave.java`) | No |
+| **R2** | 0 (nueva clase) | 0 | 1 (`CuentaInfantil.java`) | No |
+| **R3** | 0 (nueva clase) | 0 | 3 (`PushGateway.java`, `PushNotificacionService.java`, `NotificacionCompuestaService.java`) | No |
+| **R4** | 1 (`TransaccionService.java`) | 0 | 2 (`AntifraudeAuditoriaService.java`, `AuditoriaCompuestaService.java`) | No |
+| **R5** | 1 (`TransaccionService.java` + nueva clase) | 0 | 1 (`PostgreSqlRepositorio.java`) | No |
+
+.Las pruebas del Bloque 3 (`testMismoBanco`, `testOtroBanco`, `testSaldoInsuficiente`, `testGuardadoYNotificacion`, `testTipoDesconocido`) continúan pasando al 100% junto con los nuevos tests sin romper ninguna funcionalidad.
+
+---
+
+## Bloque 5 - Revisión Cruzada
+
+### Equipo revisor
+
+
+* **Oscar Iván Ulises Gutiérrez Palacios**
+* **Daniel Alonso Gracia Pinto**
+
+
+> **Nota sobre el código:**  
+> La implementación completa del Requerimiento 6 (`R6`), sus clases asociadas, pruebas unitarias y modificaciones en el punto de ensamblado se encuentran en una rama dedicada. Puedes consultar y explorar el código ejecutando:  
+> ```bash
+> git checkout revision-cruzada
+> ```
+---
+
+### Req 6: Pago de servicios públicos
+Los clientes podrán pagar sus facturas de servicios públicos (agua, luz, gas, internet) desde una cuenta, indicando la referencia de la factura y el valor.
+- El pago tiene una comisión fija de 1.500.
+- Aplican las mismas validaciones de monto que en las transferencias.
+- Como cualquier transacción, el pago se guarda, genera comprobante, notifica al cliente y pasa por auditoría y antifraude.
+- Un CDT no puede pagar servicios.
+- **Criterio de aceptación:** Un pago de 184.300 descuenta 185.800 de la cuenta, guarda la transacción e imprime el comprobante con la referencia de la factura como destino.
+- **Restricción:** No se permite copiar y pegar la lógica de `TransaccionService`. Se deben reutilizar las piezas que la otra pareja ya construyó.
+#### Análisis previo del equipo revisor
+Al leer el código se observó que un pago de servicios es el mismo flujo que una transferencia (validar, cobrar comisión, mover dinero, guardar, comprobante, notificar, auditar). Lo único que cambia es la comisión (fija de 1.500) y el destino.
+#### Archivos creados en la rama revision-cruzada
+- `TipoServicioPublico.java` : enumeración con los servicios admitidos (`AGUA`, `LUZ`, `GAS`, `INTERNET`).
+- `FacturaServicioPublico.java`: representa la factura como destino del pago. Extiende `Cuenta` para poder ser recibida por `TransaccionService`, `ComprobanteService`, `NotificacionService` y `AuditoriaService`.
+- `PagoServicioPublico.java` : `TipoTransferencia` con la comisión fija de 1.500.
+- `PagoServiciosService.java`: punto de entrada del caso de uso y delega todo el flujo en `TransaccionService`.
+- `Main.java` (modificado, solo el punto de armado): se compuso la auditoría para que el pago pase por auditoría **y** antifraude, y se agregó un pago de ejemplo de 184.300.
+- `test/PagoServiciosServiceTest.java` : archivo para los criterios de aceptación.
+
+
+
+
+## Bloque 6 - Cierre
+
+### Diagramas UML
+
+#### Diagrama original
+![Diagrama de clases UML - Código original](img/UML%20SOLID.png)
+
+#### Diagrama final
+![Diagrama de clases UML - Código refactorizado](img\UML_final.png)
+
+### Tabla comparativa
+| Métrica | Antes | Después |
+| :--- | :--- | :--- |
+| **Líneas del método transferir** | 36 | 11 |
+| **Razones distintas por las que `TransaccionService` podría cambiar** | 7 | 1 (si cambia el flujo) |
+| **Clases concretas que `TransaccionService` crea con `new`** | 2 clases:<br>1. `OracleRepositorio`<br>2. `SmsGateway` | 0 |
+| **Métodos vacíos o que lanzan "no aplica"** | 4 métodos:<br>1. `CDT.retirar(double)`<br>2. `TarjetaCredito.depositar(double)`<br>3. `CreditoVivienda.depositar(double)`<br>4. `CreditoVivienda.retirar(double)` | 0 |
+| **¿Se puede probar transferir sin Oracle ni SMS?** | No | Sí |
+| **Número total de archivos** | 11 | 21 |
+| **Archivos existentes modificados en total en el bloque 4** | Estimado original: 5 archivos | 0, todos los requerimientos se completaron creando nuevas clases y no modificando las existentes |
+---
+### Preguntas de reflexión y cierre
+#### (a) El código final tiene muchos más archivos que el original. ¿Es eso un problema? ¿En qué situación sí lo sería?
+No es un problema, es una buena práctica y es una demostración de que el código cumple con los requerimientos SOLID. Esto solo sería un problema si los archivos no estuviesen conectados y siguiendo buenas prácticas; en ese caso, cada archivo sería un problema individual y, entre más archivos, más difícil de mantener.
+#### (b) ¿En qué requerimiento del bloque 4 se notó más la diferencia entre el código original y el refactorizado? ¿Por qué?
+Para nosotros, el requerimiento donde mejor se evidenció la diferencia fue el **R6: Pago de servicios públicos**, ya que en el código refactorizado solo se debieron crear nuevas clases y todo quedó funcional. Sin la refactorización, habríamos tenido que tocar `TransaccionService.java` (recordando el enunciado, cada vez que se tocaba, otros procesos dejaban de funcionar), además de tener que crear nuevas clases e introducir más condicionales.
+#### (c) ¿Hubo algún requerimiento que su diseño no aguantó bien? ¿Qué cambiarían?
+Todos los requerimientos pasaron sin modificar ninguna clase existente en `src/`, pero el **R6: Pago de servicios públicos** fue el que puso más a prueba el diseño. Para implementarlo, tocó modelar la factura como una subclase de `Cuenta` para que pudiera ser recibida por los servicios de comprobante, notificación y auditoría. Aunque funciona y no modificó código existente, consideramos que en la vida real una factura no es una cuenta bancaria y representa una deuda técnica que debería resolverse abstrayendo el destino a una interfaz como `DestinoTransaccion`.
+#### (d) ¿Qué les dijo la otra pareja en la revisión cruzada? ¿Están de acuerdo?
+La otra pareja aprobó con "Sí" todos los puntos de la lista de revisión, resaltando positivamente la inyección de dependencias por constructor, el patrón *Strategy* en `TipoTransferencia`, la jerarquía de `CuentaOperativa` (que evitó cobros indebidos al CDT) y la reutilización directa de los dobles de prueba (*fakes*). 
+Como observación, señalaron exactamente la misma limitación que identificamos: tuvieron que extender `FacturaServicioPublico` de `Cuenta` para reutilizar el flujo, lo que conceptualmente fuerza el modelo y hace que las notificaciones hablen de "cuentas" en lugar de "facturas". También mencionaron que los componentes de R3, R4 y R5 no estaban conectados en `Main.java` y debieron componerlos en el punto de ensamblado. 
+**Estamos totalmente de acuerdo con su retroalimentación:** confirma que el diseño fue 100% extensible respetando OCP y DIP, pero ratifica la necesidad de crear un contrato más genérico para el destino de los movimientos.
+#### (e) Si tuvieran que convencer a su jefe de invertir dos semanas en refactorizar el backend real del banco, ¿qué argumento usarían, basándose en los datos de hoy?
+Para convencer al jefe trabajaríamos en la escalabilidad y el impacto financiero del código, mencionando que el código actual puede generar fallos críticos en los cobros de las cuotas de manejo (como el bloqueo en lote por culpa de un CDT que interrumpe el recaudo de miles de clientes). Puede que al jefe no le interese en primera instancia la elegancia del código o el bienestar del cliente, pero si se demuestra con datos que un bug en producción interrumpe los ingresos y cobros directos del banco, ya es un riesgo de negocio ineludible que justifica plenamente la refactorización.
+
+
+
+## Declaración de Uso de Inteligencia Artificial
+
+Se utilizó Inteligencia Artificial (asistente de código) como herramienta de apoyo para:
+- Redacción, formato, claridad pedagógica y enriquecimiento de las descripciones técnicas en el archivo `README.md`.
+- Estructuración de tablas de métricas comparativas y ordenamiento de la entrega.
+
+Todas las decisiones de arquitectura, aplicación de principios SOLID, codificación en Java y resolución de los requerimientos fueron diseñadas, implementadas y verificadas por el equipo de estudiantes.
