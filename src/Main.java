@@ -8,7 +8,10 @@ public class Main {
         TransaccionRepositorio repositorio = new OracleRepositorio();
         ComprobanteService comprobante = new ComprobanteBancoAndino();
         NotificacionService notificador = new SmsNotificacionService();
-        AuditoriaService auditoria = new ConsolaAuditoriaService();
+        AuditoriaService auditoria = new AuditoriaCompuestaService(
+                new ConsolaAuditoriaService(),
+                new AntifraudeAuditoriaService()
+        );
 
         TransaccionService servicio = new TransaccionService(
                 validador,
@@ -23,6 +26,9 @@ public class Main {
         Cuenta cdtAna = new CDT ("CDT-9", "Ana", 10_000_000, LocalDate.now().plusMonths(6));
 
         servicio.transferir (ana, luis, 150_000, new TransferenciaOtroBanco());
+
+        PagoServiciosService pagoServicios = new PagoServiciosService(servicio);
+        pagoServicios.pagar(ana, new FacturaServicioPublico("FAC-LUZ-778812", TipoServicioPublico.LUZ), 184_300);
         new CobroCuotaManejo(notificador).cobrarMensual (List.of (ana, luis));
         List<Extractable> productos = List.of(new TarjetaCredito(3_000_000), new CreditoVivienda (120_000_000));
 
