@@ -443,6 +443,11 @@ El banco migra el motor de persistencia a PostgreSQL (emitiendo `[POSTGRES]`). S
 
 ## Bloque 5 - Revisión cruzada
 
+Equipo: 
+
+- Oscar Ivan Ulises Gutierrez Palacios.
+- Daniel Alonso Gracia Pinto.
+
 Comprobar si el diseño es fácil de extender para alguien que no lo escribió.
 
 1. Intercambien su repositorio con otra pareja (el docente indica con cuál). No pueden explicarle su código: el código debe explicarse solo.
